@@ -16,12 +16,12 @@ module ObsidianContext
     end
 
     def search(query)
-      text_output = run('search', "query=#{query}", 'format=text')
-      text_paths = SearchResults.parse(text_output)
-      return text_paths unless text_paths.empty?
-
       json_output = run('search', "query=#{query}", 'format=json')
-      SearchResults.parse(json_output)
+      json_paths = SearchResults.parse(json_output)
+      return json_paths unless json_paths.empty?
+
+      text_output = run('search', "query=#{query}", 'format=text')
+      SearchResults.parse(text_output)
     end
 
     def read(path)
@@ -44,6 +44,8 @@ module ObsidianContext
       command.concat(args)
 
       stdout, stderr, status = Open3.capture3(*command)
+      stdout = normalize_output(stdout)
+      stderr = normalize_output(stderr)
       return stdout if status.success?
 
       if status.exitstatus == 127 || stderr.match?(/not found|no such file/i)
@@ -55,6 +57,12 @@ module ObsidianContext
       raise CommandFailed, "Obsidian command failed: #{rendered}\n#{details}"
     rescue Errno::ENOENT
       raise CommandNotFound, "Obsidian CLI executable not found: #{@executable}"
+    end
+
+    def normalize_output(output)
+      text = output.to_s.dup
+      text.force_encoding(Encoding::UTF_8)
+      text.valid_encoding? ? text : text.scrub
     end
   end
 end

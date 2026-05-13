@@ -13,7 +13,7 @@
     <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://rubygems.org/gems/architext">
-    <img src="https://img.shields.io/badge/version-v0.1.2-5BE8B8.svg" alt="Version 0.1.2">
+    <img src="https://img.shields.io/badge/version-v0.1.3-5BE8B8.svg" alt="Version 0.1.3">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">

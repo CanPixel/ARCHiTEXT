@@ -9,7 +9,7 @@ module ObsidianContext
     end
 
     def initialize(output)
-      @output = output.to_s
+      @output = normalize_output(output)
     end
 
     def parse
@@ -56,6 +56,12 @@ module ObsidianContext
       return nil if path.empty?
 
       path
+    end
+
+    def normalize_output(output)
+      text = output.to_s.dup
+      text.force_encoding(Encoding::UTF_8)
+      text.valid_encoding? ? text : text.scrub
     end
   end
 end

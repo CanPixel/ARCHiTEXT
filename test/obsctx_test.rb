@@ -41,6 +41,58 @@ module ObsidianContext
 
       assert_equal ['Ideas/Game.md', 'Plans/Roadmap.md'], SearchResults.parse(output)
     end
+
+    def test_parses_utf8_json_output_tagged_with_windows_encoding
+      output = JSON.dump(['🕹️ GAMES/Game.md']).b
+      output.force_encoding(Encoding::Windows_1252)
+
+      assert_equal ['🕹️ GAMES/Game.md'], SearchResults.parse(output)
+    end
+  end
+
+  class ObsidianTest < Minitest::Test
+    def test_search_prefers_json_before_text_output
+      Dir.mktmpdir do |dir|
+        executable = build_json_required_obsidian(dir)
+
+        client = Obsidian.new(executable:)
+
+        assert_equal ['Ideas/Game.md'], client.search('game')
+      end
+    end
+
+    private
+
+    def build_json_required_obsidian(dir)
+      if Gem.win_platform?
+        script_path = File.join(dir, 'obsidian.rb')
+        launcher_path = File.join(dir, 'obsidian.cmd')
+        File.write(script_path, json_required_obsidian_script)
+        File.write(launcher_path, "@echo off\r\nruby \"%~dp0obsidian.rb\" %*\r\n")
+        return launcher_path
+      end
+
+      executable = File.join(dir, 'obsidian')
+      File.write(executable, json_required_obsidian_script)
+      FileUtils.chmod('+x', executable)
+      executable
+    end
+
+    def json_required_obsidian_script
+      <<~RUBY
+        #!/usr/bin/env ruby
+        # frozen_string_literal: true
+
+        require "json"
+
+        if ARGV.include?("format=text")
+          warn "text output unavailable"
+          exit 2
+        end
+
+        puts JSON.dump(["Ideas/Game.md"])
+      RUBY
+    end
   end
 
   class SelectionParserTest < Minitest::Test
