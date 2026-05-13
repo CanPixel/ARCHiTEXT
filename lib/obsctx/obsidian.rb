@@ -16,8 +16,12 @@ module ObsidianContext
     end
 
     def search(query)
-      stdout = run('search', "query=#{query}", 'format=json')
-      SearchResults.parse(stdout)
+      text_output = run('search', "query=#{query}", 'format=text')
+      text_paths = SearchResults.parse(text_output)
+      return text_paths unless text_paths.empty?
+
+      json_output = run('search', "query=#{query}", 'format=json')
+      SearchResults.parse(json_output)
     end
 
     def read(path)

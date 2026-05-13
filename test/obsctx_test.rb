@@ -345,6 +345,24 @@ module ObsidianContext
       end
     end
 
+    def test_prefers_text_search_when_json_output_is_empty
+      with_fake_obsidian(search_paths: ['Ideas/Game.md'], search_mode: :text_only) do |obsidian_path|
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+          CLI.new(
+            ['--query', 'game', '--all', '--stdout'],
+            io: { stdout:, stderr: }
+          ).run
+        end
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, 'Ideas/Game.md'
+      end
+    end
+
     def test_diagnose_prints_connection_details
       with_fake_obsidian do |obsidian_path|
         stdout = StringIO.new
@@ -382,29 +400,29 @@ module ObsidianContext
       end
     end
 
-    def with_fake_obsidian(search_paths: ['Ideas/Game.md', 'Plans/Roadmap.md'])
+    def with_fake_obsidian(search_paths: ['Ideas/Game.md', 'Plans/Roadmap.md'], search_mode: :normal)
       Dir.mktmpdir do |dir|
-        obsidian_path = build_fake_obsidian_executable(dir, search_paths)
+        obsidian_path = build_fake_obsidian_executable(dir, search_paths, search_mode)
         yield obsidian_path
       end
     end
 
-    def build_fake_obsidian_executable(dir, search_paths)
+    def build_fake_obsidian_executable(dir, search_paths, search_mode)
       if Gem.win_platform?
         script_path = File.join(dir, 'obsidian.rb')
         launcher_path = File.join(dir, 'obsidian.cmd')
-        File.write(script_path, fake_obsidian_script(search_paths))
+        File.write(script_path, fake_obsidian_script(search_paths, search_mode))
         File.write(launcher_path, "@echo off\r\nruby \"%~dp0obsidian.rb\" %*\r\n")
         launcher_path
       else
         path = File.join(dir, 'obsidian')
-        File.write(path, fake_obsidian_script(search_paths))
+        File.write(path, fake_obsidian_script(search_paths, search_mode))
         FileUtils.chmod('+x', path)
         path
       end
     end
 
-    def fake_obsidian_script(search_paths)
+    def fake_obsidian_script(search_paths, search_mode)
       <<~RUBY
         #!/usr/bin/env ruby
         # frozen_string_literal: true
@@ -421,7 +439,16 @@ module ObsidianContext
           puts "name Main Vault"
           puts "path /vaults/main"
         when "search"
-          puts #{JSON.dump(search_paths).inspect}
+          format = ARGV.find { |arg| arg.start_with?("format=") }.to_s.split("=", 2).last
+          mode = #{search_mode.to_s.inspect}
+          paths = JSON.parse(#{JSON.dump(search_paths).inspect})
+          if mode == "text_only" && format == "json"
+            puts "[]"
+          elsif format == "text"
+            puts paths.join("\\n")
+          else
+            puts JSON.dump(paths)
+          end
         when "read"
           path = ARGV.find { |arg| arg.start_with?("path=") }.split("=", 2).last
           if path == "bad.md"
