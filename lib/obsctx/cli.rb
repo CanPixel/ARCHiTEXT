@@ -20,6 +20,7 @@ module ObsidianContext
     VAULT_SOURCE_SAVED_DEFAULT = 'saved default'
     VAULT_SOURCE_SESSION = 'session'
     VAULT_SOURCE_OBSIDIAN_DEFAULT = 'obsidian default'
+    SearchAttempt = Data.define(:paths, :next_query)
 
     def initialize(argv, io: {}, app_name: 'architext', dependencies: {})
       @stdin = io.fetch(:stdin, $stdin)
@@ -141,8 +142,21 @@ module ObsidianContext
 
       loop do
         client = Obsidian.new(vault:)
-        paths = client.search(query)
-        return no_results_for_selection(query, vault, vault_source) if paths.empty?
+        attempt = search_with_recovery(client, query)
+        if attempt.next_query
+          query = attempt.next_query
+          return nil if query.nil?
+
+          next
+        end
+
+        paths = attempt.paths
+        if paths.empty?
+          query = handle_no_results(query, vault, vault_source)
+          return nil if query.nil?
+
+          next
+        end
 
         selection = select_paths(paths, query:, vault:, vault_source:)
         if selection.new_vault
@@ -166,6 +180,22 @@ module ObsidianContext
 
         query = selection.new_query
       end
+    end
+
+    def search_with_recovery(client, query)
+      SearchAttempt.new(paths: client.search(query), next_query: nil)
+    rescue Obsidian::CommandFailed => e
+      if query_uses_operators?(query) && silent_exit_127?(e.message)
+        ui.show_info('Search operator query failed on this Obsidian CLI session. Retrying with plain-text fallback...')
+        fallback = operator_free_query(query)
+        retried = search_plain_fallback(client, fallback)
+        return retried if retried
+      end
+
+      next_query = handle_search_error(query, e)
+      return SearchAttempt.new(paths: [], next_query:) if interactive?
+
+      raise e
     end
 
     def handled_default_vault_options?
@@ -261,6 +291,26 @@ module ObsidianContext
       report[:status] == 'ok' ? 0 : 1
     end
 
+    def handle_no_results(query, vault, vault_source)
+      ui.show_no_results(
+        query,
+        vault:,
+        vault_source:,
+        default_vault_path: @settings.config_path,
+        obsidian_executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian')
+      )
+      interactive? ? prompt_for_query : nil
+    end
+
+    def handle_search_error(_query, error)
+      if interactive?
+        ui.show_error("#{error.message}\nReturning to search prompt.")
+        return prompt_for_query
+      end
+
+      raise error
+    end
+
     def select_paths(paths, query:, vault:, vault_source:)
       return TUI::Selection.new(paths:, new_query: nil, new_vault: nil, reprompt_query: false) if @options[:all]
 
@@ -327,14 +377,23 @@ module ObsidianContext
       raise Obsidian::CommandFailed, "#{e.message}\nTip: rerun with --stdout to print the bundle."
     end
 
-    def no_results_for_selection(query, vault, vault_source)
-      ui.show_no_results(
-        query,
-        vault:,
-        vault_source:,
-        default_vault_path: @settings.config_path,
-        obsidian_executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian')
-      )
+    def query_uses_operators?(query)
+      query.to_s.match?(/(^|\s)(tag|path|file|line):/i)
+    end
+
+    def silent_exit_127?(message)
+      message.to_s.match?(/exit\s+127/i)
+    end
+
+    def operator_free_query(query)
+      query.to_s.gsub(/(^|\s)[a-z]+:[^\s]+/i, ' ').gsub('#', ' ').strip
+    end
+
+    def search_plain_fallback(client, query)
+      return nil if query.empty?
+
+      SearchAttempt.new(paths: client.search(query), next_query: nil)
+    rescue Obsidian::CommandFailed
       nil
     end
 
