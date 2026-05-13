@@ -1,7 +1,7 @@
 # Architext
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/can/architext/main/assets/logo.png" alt="Architext Logo" width="200">
+  <img src="https://raw.githubusercontent.com/CanPixel/ARCHiTEXT/master/assets/logo.png" alt="Architext Logo" width="200">
   <br>
   <b>The bridge between your Obsidian vault and LLMs.</b>
   <br>
@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/can/architext/actions/workflows/ci.yml">
-    <img src="https://github.com/can/architext/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <a href="https://github.com/CanPixel/architext/actions/workflows/ci.yml">
+    <img src="https://github.com/CanPixel/architext/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://rubygems.org/gems/architext">
     <img src="https://img.shields.io/gem/v/architext.svg" alt="Gem Version">
@@ -51,7 +51,7 @@ gem install architext
 ### From Source
 
 ```sh
-git clone https://github.com/can/architext.git
+git clone https://github.com/CanPixel/architext.git
 cd architext
 ./bin/setup
 gem build architext.gemspec

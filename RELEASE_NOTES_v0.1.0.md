@@ -21,7 +21,7 @@ gem install architext
 
 Or run it directly from source:
 ```bash
-git clone https://github.com/can/architext.git
+git clone https://github.com/CanPixel/architext.git
 cd architext
 ./bin/setup
 architext
@@ -39,7 +39,7 @@ This is just the beginning. We’ve set up a professional foundation including:
 - **Documentation:** New `CONTRIBUTING.md` and `CODE_OF_CONDUCT.md`.
 - **Quality:** RuboCop-enforced idiomatic Ruby style.
 
-Check out the [README.md](https://github.com/can/architext/blob/main/README.md) for full documentation.
+Check out the [README.md](https://github.com/CanPixel/architext/blob/main/README.md) for full documentation.
 
 ---
 **Enjoying Architext?** Star us on GitHub and share your workflows with us!
