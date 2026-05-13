@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Architext! We welcome contributio
 1.  **Fork the repository** on GitHub.
 2.  **Clone your fork** locally:
     ```bash
-    git clone https://github.com/CanPixel/architext.git
+    git clone https://github.com/CanPixel/ARCHiTEXT.git
     cd architext
     ```
 3.  **Set up the development environment**:

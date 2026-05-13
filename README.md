@@ -1,7 +1,7 @@
 # Architext
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/CanPixel/ARCHiTEXT/master/assets/logo.png" alt="Architext Logo" width="200">
+  <img src="assets/logo.png" alt="ARCHiTEXT Logo" width="200">
   <br>
   <b>The bridge between your Obsidian vault and LLMs.</b>
   <br>
@@ -9,11 +9,11 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/CanPixel/architext/actions/workflows/ci.yml">
-    <img src="https://github.com/CanPixel/architext/actions/workflows/ci.yml/badge.svg" alt="CI Status">
+  <a href="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml">
+    <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
-  <a href="https://rubygems.org/gems/architext">
-    <img src="https://img.shields.io/gem/v/architext.svg" alt="Gem Version">
+  <a href="https://rubygems.org/gems/ARCHiTEXT">
+    <img src="https://img.shields.io/gem/v/ARCHiTEXT.svg" alt="Gem Version">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
@@ -23,7 +23,7 @@
 
 ---
 
-`architext` is a standalone Ruby TUI for stitching Obsidian notes into an LLM-friendly Markdown context bundle. It uses the official `obsidian` CLI as the source of truth for vault search and file reads, providing a visual terminal interface for selecting notes.
+`ARCHiTEXT` is a standalone Ruby TUI for stitching Obsidian notes into an LLM-friendly Markdown context bundle. It uses the official `obsidian` CLI as the source of truth for vault search and file reads, providing a visual terminal interface for selecting notes.
 
 ## 🚀 Quick Start
 
@@ -51,7 +51,7 @@ gem install architext
 ### From Source
 
 ```sh
-git clone https://github.com/CanPixel/architext.git
+git clone https://github.com/CanPixel/ARCHiTEXT.git
 cd architext
 ./bin/setup
 gem build architext.gemspec
