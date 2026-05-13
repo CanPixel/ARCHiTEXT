@@ -11,7 +11,7 @@ module ObsidianContext
       return @paths if %w[a all *].include?(normalized)
       return [] if normalized.empty?
 
-      indexes = normalized.split(",").flat_map { |part| expand_part(part.strip) }
+      indexes = normalized.split(',').flat_map { |part| expand_part(part.strip) }
       indexes.uniq.filter_map { |index| @paths[index - 1] }
     end
 

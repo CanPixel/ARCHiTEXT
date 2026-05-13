@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
-require "io/console"
-require "open3"
-require "optparse"
-require "shellwords"
+require 'io/console'
+require 'open3'
+require 'optparse'
+require 'shellwords'
 
-require_relative "bundle"
-require_relative "obsidian"
-require_relative "picker"
-require_relative "tui"
+require_relative 'bundle'
+require_relative 'obsidian'
+require_relative 'picker'
+require_relative 'tui'
 
 module ObsidianContext
   class CLI
-    DEFAULT_QUERY = "tag:#project/active"
+    DEFAULT_QUERY = 'tag:#project/active'
 
-    def initialize(argv, stdin: $stdin, stdout: $stdout, stderr: $stderr, app_name: "architext")
+    def initialize(argv, stdin: $stdin, stdout: $stdout, stderr: $stderr, app_name: 'architext')
       @argv = argv
       @stdin = stdin
       @stdout = stdout
@@ -52,7 +52,7 @@ module ObsidianContext
       2
     rescue Obsidian::CommandNotFound => e
       ui.show_error "#{@app_name}: #{e.message}"
-      @stderr.puts "Install/enable Obsidian CLI, or set OBSCTX_OBSIDIAN to its path."
+      @stderr.puts 'Install/enable Obsidian CLI, or set OBSCTX_OBSIDIAN to its path.'
       127
     rescue Obsidian::CommandFailed => e
       ui.show_error "#{@app_name}: #{e.message}"
@@ -68,27 +68,27 @@ module ObsidianContext
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: bin/#{@app_name} [options]"
 
-        opts.on("-q", "--query QUERY", "Obsidian search query. Default: #{DEFAULT_QUERY}") do |value|
+        opts.on('-q', '--query QUERY', "Obsidian search query. Default: #{DEFAULT_QUERY}") do |value|
           @options[:query] = value
         end
 
-        opts.on("-v", "--vault VAULT", "Obsidian vault name or id") do |value|
+        opts.on('-v', '--vault VAULT', 'Obsidian vault name or id') do |value|
           @options[:vault] = value
         end
 
-        opts.on("--stdout", "Print stitched context instead of copying to clipboard") do
+        opts.on('--stdout', 'Print stitched context instead of copying to clipboard') do
           @options[:stdout] = true
         end
 
-        opts.on("--dry-run", "Show selected files and estimated bundle size") do
+        opts.on('--dry-run', 'Show selected files and estimated bundle size') do
           @options[:dry_run] = true
         end
 
-        opts.on("--all", "Include all search results without opening the picker") do
+        opts.on('--all', 'Include all search results without opening the picker') do
           @options[:all] = true
         end
 
-        opts.on("-h", "--help", "Show this help") do
+        opts.on('-h', '--help', 'Show this help') do
           @stdout.puts opts
           exit 0
         end
@@ -122,7 +122,7 @@ module ObsidianContext
 
       unless interactive?
         raise Obsidian::CommandFailed,
-              "interactive selection requires a TTY; rerun with --all or provide input from a terminal"
+              'interactive selection requires a TTY; rerun with --all or provide input from a terminal'
       end
 
       ui.select(paths, query:)
@@ -146,7 +146,7 @@ module ObsidianContext
         return
       end
 
-      _out, err, status = Open3.capture3("pbcopy", stdin_data: bundle)
+      _out, err, status = Open3.capture3('pbcopy', stdin_data: bundle)
       raise Obsidian::CommandFailed, "pbcopy failed: #{err.strip}" unless status.success?
 
       ui.show_copied(bundle.bytesize)

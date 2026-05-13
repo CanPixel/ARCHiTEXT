@@ -1,18 +1,18 @@
 # frozen_string_literal: true
 
-require "io/console"
+require 'io/console'
 
-require_relative "terminal"
+require_relative 'terminal'
 
 module ObsidianContext
   class TUI
-    HELP = "↑/k ↓/j move  space select  a all  / filter  n new search  enter confirm  q quit"
+    HELP = '↑/k ↓/j move  space select  a all  / filter  n new search  enter confirm  q quit'
     LOGO = [
-      "    ___              __    _ __            __ ",
-      "   /   |  __________/ /_  (_) /____  _  __/ /_",
-      "  / /| | / ___/ ___/ __ \\/ / __/ _ \\| |/_/ __/",
-      " / ___ |/ /  / /__/ / / / / /_/  __/>  </ /_  ",
-      "/_/  |_/_/   \\___/_/ /_/_/\\__/\\___/_/|_|\\__/  "
+      '    ___              __    _ __            __ ',
+      '   /   |  __________/ /_  (_) /____  _  __/ /_',
+      '  / /| | / ___/ ___/ __ \\/ / __/ _ \\| |/_/ __/',
+      ' / ___ |/ /  / /__/ / / / / /_/  __/>  </ /_  ',
+      '/_/  |_/_/   \\___/_/ /_/_/\\__/\\___/_/|_|\\__/  '
     ].freeze
 
     Selection = Data.define(:paths, :new_query)
@@ -35,7 +35,7 @@ module ObsidianContext
     def select(paths, query:)
       state = {
         query: query,
-        filter: "",
+        filter: '',
         cursor: 0,
         offset: 0,
         selected: {}
@@ -57,9 +57,9 @@ module ObsidianContext
           when :all
             toggle_all(visible, state)
           when :filter
-            state[:filter] = prompt_inline("Filter visible results", state[:filter])
+            state[:filter] = prompt_inline('Filter visible results', state[:filter])
           when :new_query
-            return Selection.new(paths: [], new_query: prompt_inline("New Obsidian search", state[:query]))
+            return Selection.new(paths: [], new_query: prompt_inline('New Obsidian search', state[:query]))
           when :enter
             selected = selected_paths(paths, state)
             return Selection.new(paths: selected, new_query: nil)
@@ -78,7 +78,7 @@ module ObsidianContext
     end
 
     def show_no_selection
-      @stderr.puts render("[amber]No files selected.[/]")
+      @stderr.puts render('[amber]No files selected.[/]')
     end
 
     def show_copied(bytes)
@@ -106,7 +106,7 @@ module ObsidianContext
       width = terminal_size.last
       @stdout.puts
       LOGO.each { |line| @stdout.puts center(render("[cyan]#{line}[/]"), width) }
-      @stdout.puts center(render("[dim]Obsidian context, stitched for agent work[/]"), width)
+      @stdout.puts center(render('[dim]Obsidian context, stitched for agent work[/]'), width)
       @stdout.puts
     end
 
@@ -129,21 +129,25 @@ module ObsidianContext
       @stdout.write Terminal::CLEAR
 
       draw_header(width, state, paths.length, visible.length)
-      draw_panel_top(width, "Context Candidates")
+      draw_panel_top(width, 'Context Candidates')
 
       rows.each_with_index do |path, index|
         absolute_index = state[:offset] + index
         active = absolute_index == state[:cursor]
         checked = state[:selected][path]
-        marker = checked ? "●" : "○"
-        pointer = active ? "▶" : " "
-        style = active ? :inverse : checked ? :green : :ink
+        marker = checked ? '●' : '○'
+        pointer = active ? '▶' : ' '
+        style = if active
+                  :inverse
+                else
+                  checked ? :green : :ink
+                end
         line = " #{pointer} #{marker} #{path}"
         @stdout.puts panel_line(Terminal.paint(Terminal.truncate(line, width - 4), style, enabled: @color), width)
       end
 
       empty_rows = list_height - rows.length
-      empty_rows.times { @stdout.puts panel_line("", width) }
+      empty_rows.times { @stdout.puts panel_line('', width) }
 
       draw_panel_bottom(width)
       draw_status(width, state, visible.length)
@@ -152,10 +156,10 @@ module ObsidianContext
 
     def draw_header(width, state, total, visible_count)
       @stdout.puts render("[cyan]#{LOGO.first}[/]")
-      @stdout.puts render("[bold]ARCHITEXT[/] [dim]knowledge graph extraction console[/]")
-      @stdout.puts render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? "none" : state[:filter]}[/]")
+      @stdout.puts render('[bold]ARCHITEXT[/] [dim]knowledge graph extraction console[/]')
+      @stdout.puts render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? 'none' : state[:filter]}[/]")
       @stdout.puts render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}")
-      @stdout.puts Terminal.paint("─" * width, :faint, enabled: @color)
+      @stdout.puts Terminal.paint('─' * width, :faint, enabled: @color)
     end
 
     def draw_panel_top(width, title)
@@ -169,16 +173,16 @@ module ObsidianContext
     def panel_line(content, width)
       inner_width = [width - 4, 1].max
       visible = Terminal.visible_length(content)
-      padding = " " * [inner_width - visible, 0].max
-      Terminal.paint("│ ", :blue, enabled: @color) + content + padding + Terminal.paint(" │", :blue, enabled: @color)
+      padding = ' ' * [inner_width - visible, 0].max
+      Terminal.paint('│ ', :blue, enabled: @color) + content + padding + Terminal.paint(' │', :blue, enabled: @color)
     end
 
     def draw_status(width, state, visible_count)
       @stdout.puts render("[dim]#{HELP}[/]")
       detail = if visible_count.zero?
-                 "[amber]No visible results. Press / to change filter or n for a new search.[/]"
+                 '[amber]No visible results. Press / to change filter or n for a new search.[/]'
                elsif state[:selected].empty?
-                 "[dim]Select one or more notes, then press enter.[/]"
+                 '[dim]Select one or more notes, then press enter.[/]'
                else
                  "[green]Ready:[/] #{state[:selected].length} note(s) selected."
                end
@@ -222,35 +226,35 @@ module ObsidianContext
 
     def clamp_cursor!(state, count)
       max = [count - 1, 0].max
-      state[:cursor] = [[state[:cursor], 0].max, max].min
+      state[:cursor] = state[:cursor].clamp(0, max)
     end
 
     def keep_cursor_visible!(state, count, list_height: nil)
       list_height ||= [terminal_size.first - 13, 5].max
-      state[:offset] = [state[:offset], [count - list_height, 0].max].min
+      state[:offset] = state[:offset].clamp(0, [count - list_height, 0].max)
       state[:offset] = state[:cursor] if state[:cursor] < state[:offset]
-      if state[:cursor] >= state[:offset] + list_height
-        state[:offset] = state[:cursor] - list_height + 1
-      end
+      return unless state[:cursor] >= state[:offset] + list_height
+
+      state[:offset] = state[:cursor] - list_height + 1
     end
 
     def read_key
       key = @stdin.getch
       return :ctrl_c if key == "\u0003"
-      return :enter if key == "\r" || key == "\n"
-      return :space if key == " "
-      return :up if key == "k"
-      return :down if key == "j"
-      return :all if key == "a"
-      return :filter if key == "/"
-      return :new_query if key == "n"
-      return :quit if key == "q"
+      return :enter if ["\r", "\n"].include?(key)
+      return :space if key == ' '
+      return :up if key == 'k'
+      return :down if key == 'j'
+      return :all if key == 'a'
+      return :filter if key == '/'
+      return :new_query if key == 'n'
+      return :quit if key == 'q'
 
       if key == "\e"
         second = @stdin.getch
-        third = @stdin.getch if second == "["
-        return :up if third == "A"
-        return :down if third == "B"
+        third = @stdin.getch if second == '['
+        return :up if third == 'A'
+        return :down if third == 'B'
       end
 
       :unknown

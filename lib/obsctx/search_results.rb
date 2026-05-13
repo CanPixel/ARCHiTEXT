@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "json"
+require 'json'
 
 module ObsidianContext
   class SearchResults
@@ -23,15 +23,15 @@ module ObsidianContext
 
     def paths_from_json(value)
       paths = case value
-      when Array
-        value.flat_map { |entry| paths_from_json(entry) }
-      when Hash
-        [hash_path(value), *paths_from_nested_hash(value)]
-      when String
-        [clean_path(value)]
-      else
-        []
-      end
+              when Array
+                value.flat_map { |entry| paths_from_json(entry) }
+              when Hash
+                [hash_path(value), *paths_from_nested_hash(value)]
+              when String
+                [clean_path(value)]
+              else
+                []
+              end
 
       paths.compact
     end
@@ -43,7 +43,7 @@ module ObsidianContext
     end
 
     def hash_path(hash)
-      path = hash["path"] || hash[:path] || hash["file"] || hash[:file]
+      path = hash['path'] || hash[:path] || hash['file'] || hash[:file]
       clean_path(path) if path
     end
 

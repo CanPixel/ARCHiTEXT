@@ -16,4 +16,9 @@ Gem::Specification.new do |spec|
   spec.metadata["allowed_push_host"] = "https://example.invalid"
 
   spec.add_dependency "tty-prompt", "~> 0.23"
+
+  spec.add_development_dependency "rubocop", "~> 1.60"
+  spec.add_development_dependency "rubocop-minitest", "~> 0.34"
+  spec.add_development_dependency "rubocop-rake", "~> 0.6"
+  spec.add_development_dependency "minitest", "~> 5.0"
 end

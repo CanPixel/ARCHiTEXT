@@ -1,27 +1,27 @@
 # frozen_string_literal: true
 
-require "open3"
-require "shellwords"
+require 'open3'
+require 'shellwords'
 
-require_relative "search_results"
+require_relative 'search_results'
 
 module ObsidianContext
   class Obsidian
     class CommandFailed < StandardError; end
     class CommandNotFound < CommandFailed; end
 
-    def initialize(vault: nil, executable: ENV.fetch("OBSCTX_OBSIDIAN", "obsidian"))
+    def initialize(vault: nil, executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian'))
       @vault = vault
       @executable = executable
     end
 
     def search(query)
-      stdout = run("search", "query=#{query}", "format=json")
+      stdout = run('search', "query=#{query}", 'format=json')
       SearchResults.parse(stdout)
     end
 
     def read(path)
-      run("read", "path=#{path}")
+      run('read', "path=#{path}")
     end
 
     private

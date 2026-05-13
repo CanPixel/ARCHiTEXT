@@ -24,12 +24,12 @@ module ObsidianContext
       inverse: "\e[7m"
     }.freeze
 
-    TAGS = PALETTE.transform_keys(&:to_s).merge("/" => RESET).freeze
+    TAGS = PALETTE.transform_keys(&:to_s).merge('/' => RESET).freeze
 
     module_function
 
     def enabled?(io = $stdout)
-      io.respond_to?(:tty?) && io.tty? && ENV["NO_COLOR"].nil?
+      io.respond_to?(:tty?) && io.tty? && ENV['NO_COLOR'].nil?
     end
 
     def paint(text, *styles, enabled: true)
@@ -42,23 +42,23 @@ module ObsidianContext
     def render(markup, enabled: true)
       return strip_markup(markup) unless enabled
 
-      markup.to_s.gsub(/\[(\/|[a-z_]+)\]/) { TAGS.fetch(Regexp.last_match(1), Regexp.last_match(0)) }
+      markup.to_s.gsub(%r{\[(/|[a-z_]+)\]}) { TAGS.fetch(Regexp.last_match(1), Regexp.last_match(0)) }
     end
 
     def strip_markup(markup)
-      markup.to_s.gsub(/\[(\/|[a-z_]+)\]/, "")
+      markup.to_s.gsub(%r{\[(/|[a-z_]+)\]}, '')
     end
 
     def visible_length(text)
-      text.to_s.gsub(/\e\[[0-9;?]*[A-Za-z]/, "").length
+      text.to_s.gsub(/\e\[[0-9;?]*[A-Za-z]/, '').length
     end
 
     def truncate(text, width)
       plain = text.to_s
-      return "" if width <= 0
+      return '' if width <= 0
       return plain if visible_length(plain) <= width
 
-      stripped = plain.gsub(/\e\[[0-9;?]*[A-Za-z]/, "")
+      stripped = plain.gsub(/\e\[[0-9;?]*[A-Za-z]/, '')
       return stripped[0, width] if width <= 1
 
       "#{stripped[0, width - 1]}…"
