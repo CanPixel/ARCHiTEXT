@@ -43,7 +43,7 @@ module ObsidianContext
       command << "vault=#{@vault}" if @vault && !@vault.empty?
       command.concat(args)
 
-      stdout, stderr, status = Open3.capture3(*command)
+      stdout, stderr, status = Open3.capture3(*capture_command(command))
       stdout = normalize_output(stdout)
       stderr = normalize_output(stderr)
       return stdout if status.success?
@@ -63,6 +63,22 @@ module ObsidianContext
       text = output.to_s.dup
       text.force_encoding(Encoding::UTF_8)
       text.valid_encoding? ? text : text.scrub
+    end
+
+    def capture_command(command)
+      return command unless Gem.win_platform?
+
+      ['powershell', '-NoProfile', '-NonInteractive', '-Command', powershell_invocation(command)]
+    end
+
+    def powershell_invocation(command)
+      escaped_command = command.map { |part| powershell_quote(part) }.join(' ')
+
+      "$ErrorActionPreference = 'Stop'; & #{escaped_command}; exit $LASTEXITCODE"
+    end
+
+    def powershell_quote(value)
+      "'#{value.to_s.gsub("'", "''")}'"
     end
   end
 end
