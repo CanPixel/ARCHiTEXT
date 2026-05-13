@@ -159,6 +159,17 @@ module ObsidianContext
       assert_includes rendered, "\e[38;2;91;220;255m"
       assert_includes rendered, Terminal::RESET
     end
+
+    def test_visible_length_counts_emoji_as_wide
+      assert_equal 4, Terminal.visible_length('a🎮b')
+    end
+
+    def test_truncate_respects_wide_characters
+      truncated = Terminal.truncate('a🎮bcdef', 5)
+
+      assert_operator Terminal.visible_length(truncated), :<=, 5
+      assert_equal 'a...', truncated
+    end
   end
 
   class TUITest < Minitest::Test
@@ -216,6 +227,50 @@ module ObsidianContext
       assert result.quit
       refute result.open_vault_config
       assert_nil result.query
+    end
+
+    def test_read_key_accepts_vt_arrow_up
+      assert_equal :up, tui_for_keys(["\e", '[', 'A']).send(:read_key)
+    end
+
+    def test_read_key_accepts_application_cursor_arrow_down
+      assert_equal :down, tui_for_keys(["\e", 'O', 'B']).send(:read_key)
+    end
+
+    def test_read_key_accepts_windows_extended_arrow_up
+      assert_equal :up, tui_for_keys(["\xE0".b, 'H']).send(:read_key)
+    end
+
+    def test_read_key_accepts_windows_extended_arrow_down
+      assert_equal :down, tui_for_keys(["\xE0".b, 'P']).send(:read_key)
+    end
+
+    def test_read_key_accepts_combined_windows_extended_arrow_down
+      assert_equal :down, tui_for_keys(["\xE0P".b]).send(:read_key)
+    end
+
+    def test_read_key_accepts_combined_vt_arrow_down
+      assert_equal :down, tui_for_keys(["\e[B"]).send(:read_key)
+    end
+
+    private
+
+    class FakeKeyInput
+      def initialize(keys)
+        @keys = keys.dup
+      end
+
+      def getch
+        @keys.shift || raise(EOFError)
+      end
+
+      def read_nonblock(_length)
+        @keys.shift || raise(EOFError)
+      end
+    end
+
+    def tui_for_keys(keys)
+      TUI.new(stdin: FakeKeyInput.new(keys), stdout: StringIO.new, stderr: StringIO.new, app_name: 'architext')
     end
   end
 

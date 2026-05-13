@@ -8,7 +8,7 @@ require_relative 'version'
 module ObsidianContext
   # rubocop:disable Metrics/ClassLength
   class TUI
-    HELP = '↑/k ↓/j move  space select  a all  / filter  n new search  v vault  enter confirm  q back'
+    HELP = 'Up/k Down/j move  space select  a all  / filter  n new search  v vault  enter confirm  q back'
     KEY_BINDINGS = {
       ' ' => :space,
       'k' => :up,
@@ -224,75 +224,73 @@ module ObsidianContext
 
     def with_screen
       use_alt_screen = Terminal.alt_screen_supported?(@stdout)
+      @selector_frame_started = false
       @stdout.write Terminal::ALT_SCREEN if use_alt_screen
       @stdout.write Terminal::HIDE_CURSOR
+      @stdout.write Terminal::HOME
+      @stdout.write Terminal::CLEAR
       yield
     ensure
       @stdout.write Terminal::SHOW_CURSOR
       @stdout.write Terminal::MAIN_SCREEN if use_alt_screen
+      @selector_frame_started = false
     end
 
     def draw_selector(paths:, visible:, state:)
-      height, width = terminal_size
-      list_height = [height - 13, 5].max
+      height, terminal_width = terminal_size
+      width = usable_width(terminal_width)
+      list_height = [height - 8, 5].max
       keep_cursor_visible!(state, visible.length, list_height:)
       rows = visible.drop(state[:offset]).first(list_height)
+      lines = []
 
-      @stdout.write Terminal::HOME
-      @stdout.write Terminal::CLEAR
-
-      draw_header(width, state, paths.length, visible.length)
-      draw_panel_top(width, 'Context Candidates')
+      lines.concat(header_lines(width, state, paths.length, visible.length))
+      lines << section_title(width, 'Context Candidates')
 
       rows.each_with_index do |path, index|
         absolute_index = state[:offset] + index
         active = absolute_index == state[:cursor]
         checked = state[:selected][path]
-        marker = checked ? '●' : '○'
-        pointer = active ? '▶' : ' '
+        marker = checked ? '[x]' : '[ ]'
+        pointer = active ? '>' : ' '
         style = if active
                   :inverse
                 else
                   checked ? :green : :ink
                 end
-        line = " #{pointer} #{marker} #{path}"
-        @stdout.puts panel_line(Terminal.paint(Terminal.truncate(line, width - 4), style, enabled: @color), width)
+        line = "#{pointer} #{marker} #{path}"
+        truncated = Terminal.truncate(line, width)
+        lines << Terminal.paint(truncated, style, enabled: @color)
       end
 
       empty_rows = list_height - rows.length
-      empty_rows.times { @stdout.puts panel_line('', width) }
+      empty_rows.times { lines << '' }
 
-      draw_panel_bottom(width)
-      draw_status(width, state, visible.length)
+      lines.concat(status_lines(width, state, visible.length))
+      frame = lines.map { |line| clear_line(line) }.join("\n")
+
+      @stdout.write Terminal::HOME
+      @stdout.write(@selector_frame_started ? Terminal::CLEAR_TO_END : Terminal::CLEAR)
+      @stdout.write frame
+      @stdout.write Terminal::CLEAR_TO_END
       @stdout.flush
+      @selector_frame_started = true
     end
 
-    def draw_header(width, state, total, visible_count)
-      @stdout.puts render("[cyan]#{LOGO.first}[/]")
-      @stdout.puts render('[bold]ARCHiTEXT[/] [dim]knowledge graph extraction console[/]')
-      @stdout.puts render("[dim]vault:[/] #{format_vault_label(state[:vault], state[:vault_source])}")
-      @stdout.puts render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? 'none' : state[:filter]}[/]")
-      @stdout.puts render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}")
-      @stdout.puts Terminal.paint('─' * width, :faint, enabled: @color)
+    def header_lines(width, state, total, visible_count)
+      [
+        Terminal.truncate(render("[bold][cyan]ARCHiTEXT[/] [dim]#{state[:vault] || 'obsidian default'}[/]"), width),
+        Terminal.truncate(render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? 'none' : state[:filter]}[/]"), width),
+        Terminal.truncate(render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}"), width),
+        Terminal.paint('-' * width, :faint, enabled: @color)
+      ]
     end
 
-    def draw_panel_top(width, title)
-      @stdout.puts Terminal.paint("╭─ #{title} #{'─' * [width - title.length - 6, 0].max}╮", :blue, enabled: @color)
+    def section_title(width, title)
+      Terminal.paint(Terminal.truncate("-- #{title} ", width), :blue, enabled: @color)
     end
 
-    def draw_panel_bottom(width)
-      @stdout.puts Terminal.paint("╰#{'─' * [width - 2, 0].max}╯", :blue, enabled: @color)
-    end
-
-    def panel_line(content, width)
-      inner_width = [width - 4, 1].max
-      visible = Terminal.visible_length(content)
-      padding = ' ' * [inner_width - visible, 0].max
-      Terminal.paint('│ ', :blue, enabled: @color) + content + padding + Terminal.paint(' │', :blue, enabled: @color)
-    end
-
-    def draw_status(width, state, visible_count)
-      @stdout.puts render("[dim]#{HELP}[/]")
+    def status_lines(width, state, visible_count)
       detail = if visible_count.zero?
                  '[amber]No visible results. Press / to change filter or n for a new search.[/]'
                elsif state[:selected].empty?
@@ -300,7 +298,19 @@ module ObsidianContext
                else
                  "[green]Ready:[/] #{state[:selected].length} note(s) selected."
                end
-      @stdout.puts Terminal.truncate(render(detail), width)
+      [
+        Terminal.paint('-' * width, :faint, enabled: @color),
+        Terminal.truncate(render("[dim]#{HELP}[/]"), width),
+        Terminal.truncate(render(detail), width)
+      ]
+    end
+
+    def clear_line(text)
+      "#{Terminal::CLEAR_LINE}\r#{text}"
+    end
+
+    def usable_width(width)
+      [[width.to_i - 2, 40].max, 160].min
     end
 
     def prompt_inline(label, current)
@@ -344,7 +354,7 @@ module ObsidianContext
     end
 
     def keep_cursor_visible!(state, count, list_height: nil)
-      list_height ||= [terminal_size.first - 13, 5].max
+      list_height ||= [terminal_size.first - 8, 5].max
       state[:offset] = state[:offset].clamp(0, [count - list_height, 0].max)
       state[:offset] = state[:cursor] if state[:cursor] < state[:offset]
       return unless state[:cursor] >= state[:offset] + list_height
@@ -361,7 +371,12 @@ module ObsidianContext
       mapped = KEY_BINDINGS[key]
       return mapped if mapped
 
-      if windows_extended_key_prefix?(key)
+      bytes = key.to_s.bytes
+      if bytes.first == 27 && bytes.length > 1
+        parse_escape_sequence(bytes[1..])
+      elsif windows_extended_combo?(key)
+        parse_windows_extended_code(bytes[1])
+      elsif windows_extended_key_prefix?(key)
         parse_windows_extended_key
       elsif key == "\e"
         parse_escape_key
@@ -371,14 +386,22 @@ module ObsidianContext
     end
 
     def windows_extended_key_prefix?(key)
-      ["\u0000", "\u00E0"].include?(key)
+      [0, 224].include?(key.to_s.bytes.first)
+    end
+
+    def windows_extended_combo?(key)
+      key.to_s.bytes.length > 1 && windows_extended_key_prefix?(key)
     end
 
     def parse_windows_extended_key
-      case @stdin.getch
-      when 'H'
+      parse_windows_extended_code(@stdin.getch)
+    end
+
+    def parse_windows_extended_code(code)
+      case code_byte(code)
+      when 72
         :up
-      when 'P'
+      when 80
         :down
       else
         :unknown
@@ -386,12 +409,16 @@ module ObsidianContext
     end
 
     def parse_escape_key
-      sequence = read_escape_sequence
+      parse_escape_sequence(read_escape_sequence)
+    end
 
-      case sequence
-      when /\A\[A/
+    def parse_escape_sequence(sequence)
+      text = sequence.is_a?(Array) ? sequence.pack('C*') : sequence.to_s
+
+      case text
+      when /\A(?:\[A|OA)/
         :up
-      when /\A\[B/
+      when /\A(?:\[B|OB)/
         :down
       else
         :unknown
@@ -399,15 +426,44 @@ module ObsidianContext
     end
 
     def read_escape_sequence
-      sequence = +''
+      sequence = []
+      deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 0.08
 
       loop do
-        sequence << @stdin.read_nonblock(1)
+        sequence.concat(@stdin.read_nonblock(8).bytes)
+        break if escape_sequence_complete?(sequence)
       rescue IO::WaitReadable, EOFError
+        break if Process.clock_gettime(Process::CLOCK_MONOTONIC) >= deadline
+
+        sleep 0.005
+      rescue NotImplementedError
+        sequence.concat(read_escape_sequence_with_getch)
         break
       end
 
       sequence
+    end
+
+    def escape_sequence_complete?(sequence)
+      sequence.pack('C*').match?(/\A(?:O[A-D]|\[[0-9;?]*[A-Za-z~])\z/)
+    end
+
+    def read_escape_sequence_with_getch
+      bytes = []
+      2.times do
+        key = @stdin.getch
+        bytes.concat(key.to_s.bytes)
+        break if escape_sequence_complete?(bytes)
+      rescue EOFError
+        break
+      end
+      bytes
+    end
+
+    def code_byte(value)
+      return value if value.is_a?(Integer)
+
+      value.to_s.bytes.first
     end
 
     def terminal_size
