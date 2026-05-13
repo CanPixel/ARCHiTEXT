@@ -30,8 +30,23 @@
 ## 🚀 Quick Start
 
 ```sh
-# Search for notes tagged with #project/active and copy to clipboard
-architext --query "tag:#project/active"
+# Start the interactive search and selection flow
+architext
+```
+
+ARCHiTEXT will detect your active Obsidian vault, ask for a search query, then open a picker where you can select notes and copy the stitched context bundle to your clipboard.
+
+Common next steps:
+
+```sh
+# Search with a specific query
+architext --query "game"
+
+# Search a specific vault
+architext --vault "Main Vault" --query "project"
+
+# Print the bundle instead of copying it
+architext --query "tag:#project/active" --all --stdout
 ```
 
 ## ✨ Features
