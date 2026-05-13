@@ -278,9 +278,10 @@ module ObsidianContext
     end
 
     def header_lines(width, state, total, visible_count)
+      filter_label = state[:filter].empty? ? 'none' : state[:filter]
       [
         Terminal.truncate(render("[bold][cyan]ARCHiTEXT[/] [dim]#{state[:vault] || 'obsidian default'}[/]"), width),
-        Terminal.truncate(render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? 'none' : state[:filter]}[/]"), width),
+        Terminal.truncate(render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{filter_label}[/]"), width),
         Terminal.truncate(render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}"), width),
         Terminal.paint('-' * width, :faint, enabled: @color)
       ]
@@ -310,7 +311,7 @@ module ObsidianContext
     end
 
     def usable_width(width)
-      [[width.to_i - 2, 40].max, 160].min
+      (width.to_i - 2).clamp(40, 160)
     end
 
     def prompt_inline(label, current)

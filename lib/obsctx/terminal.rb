@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'rbconfig'
-
 module ObsidianContext
   module Terminal
     RESET = "\e[0m"
@@ -127,11 +125,6 @@ module ObsidianContext
 
     def dumb_terminal?
       ENV.fetch('TERM', '').downcase == 'dumb'
-    end
-
-    def windows?
-      host_os = RbConfig::CONFIG['host_os'].to_s.downcase
-      host_os.match?(/mswin|mingw|cygwin/)
     end
   end
 end
