@@ -35,7 +35,7 @@ Thank you for your interest in contributing to Architext! We welcome contributio
 
 1.  Ensure your code follows the existing style and all tests pass.
 2.  Update the `README.md` if your changes introduce new features or requirements.
-3.  Submit a pull request to the `main` branch.
+3.  Submit a pull request to the `master` branch.
 4.  Provide a clear description of your changes and why they are needed.
 
 ## Code of Conduct
