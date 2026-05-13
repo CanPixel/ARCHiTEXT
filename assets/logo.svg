@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Architext logo">
+  <defs>
+    <linearGradient id="bg" x1="156" y1="92" x2="852" y2="930" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.46" stop-color="#0B1F34"/>
+      <stop offset="1" stop-color="#111729"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="219" y1="231" x2="805" y2="820" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6EEBFF"/>
+      <stop offset="0.52" stop-color="#5BE8B8"/>
+      <stop offset="1" stop-color="#B983FF"/>
+    </linearGradient>
+    <linearGradient id="amber" x1="289" y1="672" x2="737" y2="364" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F6C85F"/>
+      <stop offset="1" stop-color="#FF7FA7"/>
+    </linearGradient>
+    <filter id="soft-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.36 0 0 0 0 0.94 0 0 0 0 1 0 0 0 0.55 0"/>
+      <feBlend in="SourceGraphic"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="28" stdDeviation="28" flood-color="#000712" flood-opacity="0.52"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <path d="M139 235h746M139 512h746M139 789h746M235 139v746M512 139v746M789 139v746" stroke="#17324B" stroke-width="2"/>
+  <path d="M198 315h628M198 707h628M315 198v628M707 198v628" stroke="#20435E" stroke-width="3" stroke-dasharray="12 22"/>
+
+  <g filter="url(#shadow)">
+    <path d="M219 747 512 230l293 517h-116l-53-96H387l-53 96H219Z" fill="#6EEBFF"/>
+    <path d="M512 402 437 548h150L512 402Z" fill="#102A3C"/>
+  </g>
+
+  <g filter="url(#soft-glow)">
+    <path d="M310 748h404" stroke="#07111F" stroke-width="32" stroke-linecap="round"/>
+    <path d="M332 665 248 585l84-80" fill="none" stroke="#07111F" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M692 665h96" stroke="#07111F" stroke-width="34" stroke-linecap="round"/>
+  </g>
+
+  <path d="M255 280h98M255 330h58M671 280h98M711 330h58M255 831h98M671 831h98" stroke="#49647C" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="512" cy="229" r="16" fill="#F6C85F"/>
+  <circle cx="219" cy="747" r="16" fill="#5BE8B8"/>
+  <circle cx="805" cy="747" r="16" fill="#B983FF"/>
+</svg>
