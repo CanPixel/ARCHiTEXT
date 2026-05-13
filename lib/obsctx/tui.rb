@@ -3,10 +3,22 @@
 require 'io/console'
 
 require_relative 'terminal'
+require_relative 'version'
 
 module ObsidianContext
+  # rubocop:disable Metrics/ClassLength
   class TUI
-    HELP = '↑/k ↓/j move  space select  a all  / filter  n new search  enter confirm  q quit'
+    HELP = '↑/k ↓/j move  space select  a all  / filter  n new search  v vault  enter confirm  q quit'
+    KEY_BINDINGS = {
+      ' ' => :space,
+      'k' => :up,
+      'j' => :down,
+      'a' => :all,
+      '/' => :filter,
+      'n' => :new_query,
+      'v' => :new_vault,
+      'q' => :quit
+    }.freeze
     LOGO = [
       '    ___              __    _ __            __ ',
       '   /   |  __________/ /_  (_) /____  _  __/ /_',
@@ -15,7 +27,7 @@ module ObsidianContext
       '/_/  |_/_/   \\___/_/ /_/_/\\__/\\___/_/|_|\\__/  '
     ].freeze
 
-    Selection = Data.define(:paths, :new_query)
+    Selection = Data.define(:paths, :new_query, :new_vault, :reprompt_query)
 
     def initialize(stdin:, stdout:, stderr:, app_name:)
       @stdin = stdin
@@ -23,6 +35,7 @@ module ObsidianContext
       @stderr = stderr
       @app_name = app_name
       @color = Terminal.enabled?(@stdout)
+      @intro_rendered = false
     end
 
     def prompt_query(default:)
@@ -32,9 +45,11 @@ module ObsidianContext
       input.nil? || input.empty? ? default : input
     end
 
-    def select(paths, query:)
+    # rubocop:disable Metrics/BlockLength
+    def select(paths, query:, vault:)
       state = {
         query: query,
+        vault: vault,
         filter: '',
         cursor: 0,
         offset: 0,
@@ -59,12 +74,26 @@ module ObsidianContext
           when :filter
             state[:filter] = prompt_inline('Filter visible results', state[:filter])
           when :new_query
-            return Selection.new(paths: [], new_query: prompt_inline('New Obsidian search', state[:query]))
+            return Selection.new(
+              paths: [],
+              new_query: prompt_inline('New Obsidian search', state[:query]),
+              new_vault: nil,
+              reprompt_query: false
+            )
+          when :new_vault
+            return Selection.new(
+              paths: [],
+              new_query: nil,
+              new_vault: prompt_inline('Vault name or id (blank clears)', state[:vault].to_s),
+              reprompt_query: false
+            )
           when :enter
             selected = selected_paths(paths, state)
-            return Selection.new(paths: selected, new_query: nil)
-          when :quit, :ctrl_c
-            return Selection.new(paths: [], new_query: nil)
+            return Selection.new(paths: selected, new_query: nil, new_vault: nil, reprompt_query: false)
+          when :quit
+            return Selection.new(paths: [], new_query: nil, new_vault: nil, reprompt_query: true)
+          when :ctrl_c
+            return Selection.new(paths: [], new_query: nil, new_vault: nil, reprompt_query: false)
           end
 
           clamp_cursor!(state, visible.length)
@@ -72,9 +101,12 @@ module ObsidianContext
         end
       end
     end
+    # rubocop:enable Metrics/BlockLength
 
-    def show_no_results(query)
-      @stderr.puts render("[red]No Obsidian notes matched[/] [amber]#{query.inspect}[/]")
+    def show_no_results(query, vault:)
+      vault_label = vault.to_s.strip.empty? ? '[dim]active vault: (default)[/]' : "[dim]active vault:[/] [cyan]#{vault}[/]"
+      @stderr.puts render("[red]No Obsidian notes matched[/] [amber]#{query.inspect}[/]  #{vault_label}")
+      @stderr.puts render('[amber]Tip:[/] press [bold]v[/] in the TUI to set a vault, or pass [bold]--vault[/].')
     end
 
     def show_no_selection
@@ -102,21 +134,42 @@ module ObsidianContext
 
     def draw_intro
       return unless @stdout.tty?
+      return if @intro_rendered
 
       width = terminal_size.last
-      @stdout.puts
-      LOGO.each { |line| @stdout.puts center(render("[cyan]#{line}[/]"), width) }
-      @stdout.puts center(render('[dim]Obsidian context, stitched for agent work[/]'), width)
-      @stdout.puts
+      play_intro_animation(width)
+      @intro_rendered = true
+    end
+
+    def play_intro_animation(width)
+      frames = @color ? [%i[faint dim], %i[blue dim], %i[cyan white]] : [[nil, nil]]
+
+      frames.each do |logo_style, version_style|
+        @stdout.write Terminal::HOME
+        @stdout.write Terminal::CLEAR
+        @stdout.puts
+        LOGO.each do |line|
+          styled = logo_style ? Terminal.paint(line, logo_style, enabled: @color) : line
+          @stdout.puts center(styled, width)
+        end
+        @stdout.puts center(render('[dim]Architect Obsidian context and stitch for agent work[/]'), width)
+        version = "v#{ObsidianContext::VERSION}"
+        styled_version = version_style ? Terminal.paint(version, version_style, enabled: @color) : version
+        @stdout.puts center(styled_version, width)
+        @stdout.puts
+        @stdout.flush
+        sleep(0.08) if frames.length > 1
+      end
     end
 
     def with_screen
-      @stdout.write Terminal::ALT_SCREEN
+      use_alt_screen = Terminal.alt_screen_supported?(@stdout)
+      @stdout.write Terminal::ALT_SCREEN if use_alt_screen
       @stdout.write Terminal::HIDE_CURSOR
       yield
     ensure
       @stdout.write Terminal::SHOW_CURSOR
-      @stdout.write Terminal::MAIN_SCREEN
+      @stdout.write Terminal::MAIN_SCREEN if use_alt_screen
     end
 
     def draw_selector(paths:, visible:, state:)
@@ -156,7 +209,9 @@ module ObsidianContext
 
     def draw_header(width, state, total, visible_count)
       @stdout.puts render("[cyan]#{LOGO.first}[/]")
-      @stdout.puts render('[bold]ARCHITEXT[/] [dim]knowledge graph extraction console[/]')
+      @stdout.puts render('[bold]ARCHiTEXT[/] [dim]knowledge graph extraction console[/]')
+      vault_label = state[:vault].to_s.strip.empty? ? '[dim](default)[/]' : "[cyan]#{state[:vault]}[/]"
+      @stdout.puts render("[dim]vault:[/] #{vault_label}")
       @stdout.puts render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{state[:filter].empty? ? 'none' : state[:filter]}[/]")
       @stdout.puts render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}")
       @stdout.puts Terminal.paint('─' * width, :faint, enabled: @color)
@@ -241,23 +296,59 @@ module ObsidianContext
     def read_key
       key = @stdin.getch
       return :ctrl_c if key == "\u0003"
-      return :enter if ["\r", "\n"].include?(key)
-      return :space if key == ' '
-      return :up if key == 'k'
-      return :down if key == 'j'
-      return :all if key == 'a'
-      return :filter if key == '/'
-      return :new_query if key == 'n'
-      return :quit if key == 'q'
 
-      if key == "\e"
-        second = @stdin.getch
-        third = @stdin.getch if second == '['
-        return :up if third == 'A'
-        return :down if third == 'B'
+      return :enter if ["\r", "\n"].include?(key)
+
+      mapped = KEY_BINDINGS[key]
+      return mapped if mapped
+
+      if windows_extended_key_prefix?(key)
+        parse_windows_extended_key
+      elsif key == "\e"
+        parse_escape_key
+      else
+        :unknown
+      end
+    end
+
+    def windows_extended_key_prefix?(key)
+      ["\u0000", "\u00E0"].include?(key)
+    end
+
+    def parse_windows_extended_key
+      case @stdin.getch
+      when 'H'
+        :up
+      when 'P'
+        :down
+      else
+        :unknown
+      end
+    end
+
+    def parse_escape_key
+      sequence = read_escape_sequence
+
+      case sequence
+      when /\A\[A/
+        :up
+      when /\A\[B/
+        :down
+      else
+        :unknown
+      end
+    end
+
+    def read_escape_sequence
+      sequence = +''
+
+      loop do
+        sequence << @stdin.read_nonblock(1)
+      rescue IO::WaitReadable, EOFError
+        break
       end
 
-      :unknown
+      sequence
     end
 
     def terminal_size
@@ -275,4 +366,5 @@ module ObsidianContext
       Terminal.render(markup, enabled: @color)
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'rbconfig'
+
 module ObsidianContext
   module Terminal
     RESET = "\e[0m"
@@ -12,6 +14,7 @@ module ObsidianContext
 
     PALETTE = {
       ink: "\e[38;2;221;231;239m",
+      white: "\e[38;2;255;255;255m",
       dim: "\e[38;2;126;140;155m",
       faint: "\e[38;2;83;96;112m",
       cyan: "\e[38;2;91;220;255m",
@@ -29,7 +32,11 @@ module ObsidianContext
     module_function
 
     def enabled?(io = $stdout)
-      io.respond_to?(:tty?) && io.tty? && ENV['NO_COLOR'].nil?
+      io.respond_to?(:tty?) && io.tty? && ENV['NO_COLOR'].nil? && !dumb_terminal?
+    end
+
+    def alt_screen_supported?(io = $stdout)
+      enabled?(io) && !windows?
     end
 
     def paint(text, *styles, enabled: true)
@@ -62,6 +69,15 @@ module ObsidianContext
       return stripped[0, width] if width <= 1
 
       "#{stripped[0, width - 1]}…"
+    end
+
+    def dumb_terminal?
+      ENV.fetch('TERM', '').downcase == 'dumb'
+    end
+
+    def windows?
+      host_os = RbConfig::CONFIG['host_os'].to_s.downcase
+      host_os.match?(/mswin|mingw|cygwin/)
     end
   end
 end

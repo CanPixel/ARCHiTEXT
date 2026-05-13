@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-05-13
+
+### Added
+- Cross-platform clipboard support for macOS, Windows, and Linux command-line environments.
+- `--version` flag to print the running executable version.
+- Windows and Linux platform notes in README.
+- CI matrix coverage for `ubuntu-latest`, `macos-latest`, and `windows-latest`.
+- Persistent default vault management via `--set-default-vault` and `--clear-default-vault`.
+- TUI vault control (`v`) plus active-vault visibility in the selector header.
+- Splash intro enhancements: branded subtitle, centered version line, and short glow animation.
+
+### Changed
+- TUI input handling for better Windows key compatibility.
+- Terminal capability detection to avoid unsupported rendering features in some terminals.
+- `q` during selection now returns to the search prompt instead of exiting immediately.
+- No-results feedback now includes vault context and remediation tips.
+
 ## [0.1.0] - 2026-05-13
 
 ### Added

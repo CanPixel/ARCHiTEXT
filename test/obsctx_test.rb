@@ -8,9 +8,11 @@ require 'tmpdir'
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
 require 'obsctx/bundle'
+require 'obsctx/clipboard'
 require 'obsctx/cli'
 require 'obsctx/search_results'
 require 'obsctx/selection_parser'
+require 'obsctx/settings'
 require 'obsctx/terminal'
 
 module ObsidianContext
@@ -113,7 +115,10 @@ module ObsidianContext
         stderr = StringIO.new
 
         code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
-          CLI.new(['--query', 'tag:#ctx/current', '--all', '--stdout'], stdout:, stderr:).run
+          CLI.new(
+            ['--query', 'tag:#ctx/current', '--all', '--stdout'],
+            io: { stdout:, stderr: }
+          ).run
         end
 
         assert_equal 0, code
@@ -131,7 +136,10 @@ module ObsidianContext
         stderr = StringIO.new
 
         code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
-          CLI.new(['--query', 'tag:#ctx/current', '--all', '--stdout'], stdout:, stderr:).run
+          CLI.new(
+            ['--query', 'tag:#ctx/current', '--all', '--stdout'],
+            io: { stdout:, stderr: }
+          ).run
         end
 
         assert_equal 1, code
@@ -146,7 +154,11 @@ module ObsidianContext
         stderr = StringIO.new
 
         code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
-          CLI.new(['--query', 'tag:#missing', '--all', '--stdout'], stdout:, stderr:, app_name: 'architext').run
+          CLI.new(
+            ['--query', 'tag:#missing', '--all', '--stdout'],
+            io: { stdout:, stderr: },
+            app_name: 'architext'
+          ).run
         end
 
         assert_equal 1, code
@@ -156,7 +168,143 @@ module ObsidianContext
       end
     end
 
+    def test_non_stdout_mode_uses_clipboard_adapter
+      with_fake_obsidian do |obsidian_path|
+        stdout = StringIO.new
+        stderr = StringIO.new
+        clipboard = FakeClipboard.new
+
+        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+          CLI.new(
+            ['--query', 'tag:#ctx/current', '--all'],
+            io: { stdout:, stderr: },
+            dependencies: { clipboard: }
+          ).run
+        end
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_equal 1, clipboard.copied_payloads.length
+        assert_includes clipboard.copied_payloads.first, '# Context Bundle'
+      end
+    end
+
+    def test_clipboard_failure_surfaces_stdout_fallback_tip
+      with_fake_obsidian do |obsidian_path|
+        stdout = StringIO.new
+        stderr = StringIO.new
+        clipboard = FailingClipboard.new
+
+        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+          CLI.new(
+            ['--query', 'tag:#ctx/current', '--all'],
+            io: { stdout:, stderr: },
+            dependencies: { clipboard: }
+          ).run
+        end
+
+        assert_equal 1, code
+        assert_empty stdout.string
+        assert_includes stderr.string, 'No supported clipboard command found'
+        assert_includes stderr.string, 'rerun with --stdout'
+      end
+    end
+
+    def test_version_flag_prints_current_version
+      stdout = StringIO.new
+      stderr = StringIO.new
+
+      assert_raises(SystemExit) do
+        CLI.new(['--version'], io: { stdout:, stderr: }).run
+      end
+
+      assert_equal "#{ObsidianContext::VERSION}\n", stdout.string
+      assert_empty stderr.string
+    end
+
+    def test_set_default_vault_flag_persists_value_and_exits
+      Dir.mktmpdir do |dir|
+        stdout = StringIO.new
+        stderr = StringIO.new
+        settings = Settings.new(config_path: File.join(dir, 'default_vault'))
+
+        code = CLI.new(
+          ['--set-default-vault', 'Main Vault'],
+          io: { stdout:, stderr: },
+          dependencies: { settings: }
+        ).run
+
+        assert_equal 0, code
+        assert_equal "Default vault set to: Main Vault\n", stdout.string
+        assert_empty stderr.string
+        assert_equal 'Main Vault', settings.default_vault
+      end
+    end
+
+    def test_clear_default_vault_flag_clears_value_and_exits
+      Dir.mktmpdir do |dir|
+        stdout = StringIO.new
+        stderr = StringIO.new
+        path = File.join(dir, 'default_vault')
+        settings = Settings.new(config_path: path)
+        settings.default_vault = 'Main Vault'
+
+        code = CLI.new(
+          ['--clear-default-vault'],
+          io: { stdout:, stderr: },
+          dependencies: { settings: }
+        ).run
+
+        assert_equal 0, code
+        assert_equal "Default vault cleared.\n", stdout.string
+        assert_empty stderr.string
+        assert_nil settings.default_vault
+      end
+    end
+
+    def test_saved_default_vault_is_used_when_vault_flag_is_omitted
+      Dir.mktmpdir do |dir|
+        stdout = StringIO.new
+        stderr = StringIO.new
+        settings = Settings.new(config_path: File.join(dir, 'default_vault'))
+        settings.default_vault = 'Main Vault'
+
+        with_fake_obsidian(search_paths: []) do |obsidian_path|
+          code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+            CLI.new(
+              ['--query', 'tag:#missing', '--all', '--stdout'],
+              io: { stdout:, stderr: },
+              dependencies: { settings: },
+              app_name: 'architext'
+            ).run
+          end
+
+          assert_equal 1, code
+          assert_includes stderr.string, 'active vault:'
+          assert_includes stderr.string, 'Main Vault'
+        end
+      end
+    end
+
     private
+
+    class FakeClipboard
+      attr_reader :copied_payloads
+
+      def initialize
+        @copied_payloads = []
+      end
+
+      def copy(text)
+        @copied_payloads << text
+      end
+    end
+
+    class FailingClipboard
+      def copy(_text)
+        raise Clipboard::UnsupportedPlatform, 'No supported clipboard command found.'
+      end
+    end
 
     def with_fake_obsidian(search_paths: ['Ideas/Game.md', 'Plans/Roadmap.md'])
       Dir.mktmpdir do |dir|
@@ -200,6 +348,79 @@ module ObsidianContext
       yield
     ensure
       old_values.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
+    end
+  end
+
+  class ClipboardTest < Minitest::Test
+    FakeStatus = Struct.new(:successful, :exitstatus) do
+      def success?
+        successful
+      end
+    end
+
+    def test_windows_uses_clip_when_available
+      Dir.mktmpdir do |dir|
+        touch_executable(File.join(dir, 'clip.exe'))
+        captured = nil
+        runner = lambda do |*args, stdin_data:|
+          captured = [args, stdin_data]
+          ['', '', FakeStatus.new(true, 0)]
+        end
+
+        clipboard = Clipboard.new(
+          runner:,
+          env: { 'PATH' => dir, 'PATHEXT' => '.EXE;.CMD' },
+          host_os: 'x64-mingw-ucrt'
+        )
+
+        clipboard.copy('hello')
+
+        assert_equal ['clip'], captured.first
+        assert_equal 'hello', captured.last
+      end
+    end
+
+    def test_linux_falls_back_to_xclip_when_wl_copy_is_missing
+      Dir.mktmpdir do |dir|
+        touch_executable(File.join(dir, 'xclip'))
+        captured = nil
+        runner = lambda do |*args, stdin_data:|
+          captured = [args, stdin_data]
+          ['', '', FakeStatus.new(true, 0)]
+        end
+
+        clipboard = Clipboard.new(
+          runner:,
+          env: { 'PATH' => dir },
+          host_os: 'linux-gnu'
+        )
+
+        clipboard.copy('payload')
+
+        assert_equal ['xclip', '-selection', 'clipboard'], captured.first
+        assert_equal 'payload', captured.last
+      end
+    end
+
+    def test_raises_when_no_clipboard_command_is_available
+      clipboard = Clipboard.new(
+        runner: lambda { |*_args, stdin_data:|
+          _ = stdin_data
+          ['', '', FakeStatus.new(true, 0)]
+        },
+        env: { 'PATH' => '' },
+        host_os: 'linux-gnu'
+      )
+
+      error = assert_raises(Clipboard::UnsupportedPlatform) { clipboard.copy('x') }
+      assert_includes error.message, 'No supported clipboard command found'
+    end
+
+    private
+
+    def touch_executable(path)
+      File.write(path, '')
+      FileUtils.chmod('+x', path)
     end
   end
 end

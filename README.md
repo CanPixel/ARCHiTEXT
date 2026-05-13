@@ -13,7 +13,7 @@
     <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://rubygems.org/gems/ARCHiTEXT">
-    <img src="https://img.shields.io/gem/v/ARCHiTEXT.svg" alt="Gem Version">
+    <img src="https://img.shields.io/badge/version-v0.1.1-5BE8B8.svg" alt="Version 0.1.1">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
@@ -37,10 +37,11 @@ architext --query "tag:#project/active"
 ## ✨ Features
 
 - **Visual Picker:** Interactively select notes using a high-performance ANSI TUI.
+- **Vault-Aware UX:** Active vault is always visible in the TUI, with inline vault switching.
 - **Context Stitching:** Automatically bundles selected notes into a single Markdown file.
 - **LLM Ready:** Output is formatted specifically for easy consumption by AI agents.
 - **No Dependencies:** Built-in ANSI-based TUI logic (no complex visual gems required).
-- **Clipboard Integration:** Copies directly to macOS clipboard by default.
+- **Cross-Platform Clipboard:** Uses native clipboard commands on macOS, Windows, and Linux.
 
 ## 📦 Installation
 
@@ -64,12 +65,24 @@ gem install ./architext-*.gem
 
 Architext relies on the [Obsidian CLI](https://github.com/obsidianmd/obsidian-cli). Ensure it is installed and available on your `PATH`.
 
+### Supported Platforms
+
+- **macOS:** Fully supported (tested in CI).
+- **Windows:** Native terminal support (PowerShell/Windows Terminal) with `clip` clipboard integration.
+- **Linux:** Native terminal support with clipboard integration via `wl-copy`, `xclip`, or `xsel`.
+
 ### Setting the Obsidian CLI Path
 
 If the CLI is not in your `PATH`, you can set the `OBSCTX_OBSIDIAN` environment variable:
 
 ```sh
 export OBSCTX_OBSIDIAN="/path/to/obsidian"
+```
+
+PowerShell:
+
+```powershell
+$env:OBSCTX_OBSIDIAN = "C:\path\to\obsidian.exe"
 ```
 
 ## 🛠 Usage
@@ -87,9 +100,26 @@ architext --query "tag:#ctx/current" --stdout | gemini "Summarize this"
 # Specify a vault
 architext --vault "Main Vault" --query "Ideas"
 
+# Set a persistent default vault
+architext --set-default-vault "Main Vault"
+
+# Clear the persistent default vault
+architext --clear-default-vault
+
+# Check exactly which executable version is running
+architext --version
+
 # Skip the picker and include all results
 architext --query "tag:#project/active" --all --stdout
 ```
+
+### Vault Selection Behavior
+
+- `--vault` sets the vault only for the current run.
+- `--set-default-vault` stores a persistent default vault for future runs.
+- If `--vault` is omitted, the persistent default vault is used when available.
+- Press `v` in the TUI selection screen to change vault inline for the current session.
+- The active vault is shown in the TUI header (`vault: ...`) so target scope is always visible.
 
 ### TUI Controls
 
@@ -100,8 +130,9 @@ architext --query "tag:#project/active" --all --stdout
 | `a` | Toggle all visible notes |
 | `/` | Filter current results |
 | `n` | Start a new Obsidian search |
+| `v` | Set/change active vault |
 | `enter` | Confirm and bundle selected notes |
-| `q` | Quit |
+| `q` | Return to search prompt |
 
 ## 🔍 Troubleshooting
 
@@ -109,10 +140,21 @@ architext --query "tag:#project/active" --all --stdout
 If you see an error about `obsidian` command not found:
 1. Ensure the Obsidian desktop app is installed.
 2. Verify that you have installed the `obsidian` CLI tool.
-3. Check if `obsidian` is in your `PATH` by running `which obsidian`.
+3. Check if `obsidian` is in your `PATH` by running `which obsidian` (macOS/Linux) or `where obsidian` (Windows).
 
-### macOS Clipboard Issues
-Architext uses `pbcopy` for clipboard integration. If you are using Linux or WSL, use the `--stdout` flag and pipe to your system's clipboard manager (e.g., `xclip` or `wl-copy`).
+### No Results But Notes Exist
+- Verify the active vault shown in the TUI header.
+- Use `v` in the TUI to switch vault and rerun the query.
+- Set a persistent vault with `--set-default-vault "Your Vault"`.
+- For one-off runs, pass `--vault "Your Vault"` explicitly.
+
+### Clipboard Issues
+Architext auto-detects clipboard tools:
+- macOS: `pbcopy`
+- Windows: `clip` (fallback: PowerShell `Set-Clipboard`)
+- Linux: `wl-copy`, `xclip`, or `xsel`
+
+If none are available, run with `--stdout` and pipe output to your preferred clipboard manager.
 
 ## 📜 License
 
