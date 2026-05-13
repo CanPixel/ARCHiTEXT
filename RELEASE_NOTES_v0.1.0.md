@@ -1,4 +1,4 @@
-# Release: Architext v0.1.0 (Initial Release) 🚀
+# Release: ARCHiTEXT v0.1.0 (Initial Release) 🚀
 
 We are thrilled to announce the first official release of **Architext**, a high-performance Ruby TUI designed to be the bridge between your Obsidian vault and Large Language Models (LLMs).
 
@@ -42,4 +42,4 @@ This is just the beginning. We’ve set up a professional foundation including:
 Check out the [README.md](https://github.com/CanPixel/ARCHiTEXT/blob/master/README.md) for full documentation.
 
 ---
-**Enjoying Architext?** Star us on GitHub and share your workflows with us!
+**Enjoying ARCHiTEXT?** Star us on GitHub and share your workflows with us!
