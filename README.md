@@ -110,6 +110,9 @@ architext --clear-default-vault
 # Check exactly which executable version is running
 architext --version
 
+# Print vault/CLI diagnostics before searching
+architext --diagnose
+
 # Skip the picker and include all results
 architext --query "tag:#project/active" --all --stdout
 ```
@@ -123,6 +126,7 @@ architext --query "tag:#project/active" --all --stdout
 - Press `v` in the TUI selection screen to change vault inline for the current session.
 - The active vault is shown in the TUI header (`vault: ...`) so target scope is always visible.
 - Vault path resolution is performed by the Obsidian CLI (`vault=<name_or_id>`); ARCHiTEXT displays the vault reference and source.
+- Startup prompt includes an Obsidian connection check (`version`, resolved vault summary, executable path).
 
 ### Search Prompt Controls
 
@@ -159,6 +163,7 @@ If you see an error about `obsidian` command not found:
 - In selection, use `v` to switch vault and rerun the query.
 - Set a persistent vault with `--set-default-vault "Your Vault"`.
 - For one-off runs, pass `--vault "Your Vault"` explicitly.
+- Run `architext --diagnose` to print the exact vault reference/source and Obsidian CLI resolution before searching.
 
 ### Clipboard Issues
 Architext auto-detects clipboard tools:

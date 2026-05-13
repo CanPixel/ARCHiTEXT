@@ -13,6 +13,7 @@ require_relative 'tui'
 require_relative 'version'
 
 module ObsidianContext
+  # rubocop:disable Metrics/ClassLength
   class CLI
     DEFAULT_QUERY = 'tag:#project/active'
     VAULT_SOURCE_EXPLICIT = '--vault'
@@ -33,6 +34,7 @@ module ObsidianContext
         vault: nil,
         set_default_vault: nil,
         clear_default_vault: false,
+        diagnose: false,
         stdout: false,
         dry_run: false,
         all: false
@@ -45,6 +47,8 @@ module ObsidianContext
       return 0 if handled_default_vault_options?
 
       apply_default_vault
+      return run_diagnostics if @options[:diagnose]
+
       selected_paths = gather_selection
       return 1 unless selected_paths
       return no_selection if selected_paths.empty?
@@ -76,6 +80,7 @@ module ObsidianContext
 
     private
 
+    # rubocop:disable Metrics/BlockLength
     def parse_options
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: bin/#{@app_name} [options]"
@@ -94,6 +99,10 @@ module ObsidianContext
 
         opts.on('--clear-default-vault', 'Clear persistent default vault') do
           @options[:clear_default_vault] = true
+        end
+
+        opts.on('--diagnose', 'Print Obsidian CLI and vault diagnostics, then exit') do
+          @options[:diagnose] = true
         end
 
         opts.on('--stdout', 'Print stitched context instead of copying to clipboard') do
@@ -121,6 +130,7 @@ module ObsidianContext
 
       parser.parse!(@argv)
     end
+    # rubocop:enable Metrics/BlockLength
 
     def gather_selection
       query = @options[:query] || prompt_for_query
@@ -190,12 +200,16 @@ module ObsidianContext
       return DEFAULT_QUERY unless interactive?
 
       loop do
+        connection = build_connection_report
         input = ui.prompt_query(
           default: DEFAULT_QUERY,
-          vault: @options[:vault],
-          vault_source: @vault_source,
-          default_vault: @settings.default_vault,
-          default_vault_path: @settings.config_path
+          context: {
+            vault: @options[:vault],
+            vault_source: @vault_source,
+            default_vault: @settings.default_vault,
+            default_vault_path: @settings.config_path,
+            connection_report: connection
+          }
         )
         return nil if input.quit
 
@@ -206,6 +220,45 @@ module ObsidianContext
 
         return input.query
       end
+    end
+
+    def build_connection_report
+      report = {
+        executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian'),
+        status: 'unknown',
+        version: nil,
+        resolved_vault_summary: nil,
+        warning: nil
+      }
+      client = Obsidian.new(vault: @options[:vault], executable: report[:executable])
+      report[:version] = client.version
+      report[:resolved_vault_summary] = summarize_vault_info(client.vault_info)
+      report[:status] = 'ok'
+      report[:warning] = vault_mismatch_warning(report[:resolved_vault_summary], @options[:vault])
+      report
+    rescue Obsidian::CommandFailed => e
+      report[:status] = 'error'
+      report[:warning] = first_line(e.message)
+      report
+    rescue Obsidian::CommandNotFound => e
+      report[:status] = 'error'
+      report[:warning] = e.message
+      report
+    end
+
+    def run_diagnostics
+      report = build_connection_report
+      @stdout.puts "ARCHiTEXT diagnostics (v#{ObsidianContext::VERSION})"
+      @stdout.puts "active vault ref: #{@options[:vault] || '(none selected)'}"
+      @stdout.puts "vault source: #{@vault_source}"
+      @stdout.puts "saved default vault: #{@settings.default_vault || '(none)'}"
+      @stdout.puts "default vault config path: #{@settings.config_path}"
+      @stdout.puts "obsidian cli executable: #{report[:executable]}"
+      @stdout.puts "obsidian cli version: #{report[:version] || 'unknown'}"
+      @stdout.puts "connection check: #{report[:status]}"
+      @stdout.puts "resolved vault: #{report[:resolved_vault_summary] || '(unknown)'}"
+      @stdout.puts "diagnostic warning: #{report[:warning]}" if report[:warning]
+      report[:status] == 'ok' ? 0 : 1
     end
 
     def select_paths(paths, query:, vault:, vault_source:)
@@ -285,6 +338,36 @@ module ObsidianContext
       nil
     end
 
+    def summarize_vault_info(text)
+      lines = text.to_s.lines.map(&:strip).reject(&:empty?)
+      kv = lines.each_with_object({}) do |line, memo|
+        next unless line.match?(/\A[a-zA-Z0-9_]+\s+/)
+
+        key, value = line.split(/\s+/, 2)
+        memo[key.downcase] = value
+      end
+
+      name = kv['name']
+      path = kv['path']
+      return "#{name} | #{path}" if name && path
+      return name if name
+      return path if path
+
+      compact = lines.join(' | ')
+      compact[0, 180]
+    end
+
+    def vault_mismatch_warning(vault_summary, requested_vault)
+      return nil if requested_vault.to_s.strip.empty?
+      return nil if vault_summary.to_s.downcase.include?(requested_vault.to_s.downcase)
+
+      "Requested vault '#{requested_vault}' may not match resolved vault reported by Obsidian CLI."
+    end
+
+    def first_line(text)
+      text.to_s.lines.first.to_s.strip
+    end
+
     def no_selection
       ui.show_no_selection
       1
@@ -298,4 +381,5 @@ module ObsidianContext
       @ui ||= TUI.new(stdin: @stdin, stdout: @stdout, stderr: @stderr, app_name: @app_name)
     end
   end
+  # rubocop:enable Metrics/ClassLength
 end

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - active vault and source
   - saved default vault
   - default vault config path
+- Obsidian CLI pre-search connection diagnostics (`version`, resolved vault summary, executable path).
+- `--diagnose` CLI flag to print vault/CLI connection details without running a search.
 - No-results diagnostics now include vault source, config path, and Obsidian CLI executable reference.
 
 ### Changed

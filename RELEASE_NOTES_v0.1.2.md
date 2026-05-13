@@ -30,11 +30,17 @@ ARCHiTEXT `v0.1.2` improves first-run vault UX and Windows setup ergonomics.
   - `saved default`
   - `session`
   - `obsidian default`
+- Startup shows Obsidian CLI connection status before search:
+  - executable path/reference
+  - CLI version
+  - resolved vault summary from `obsidian vault`
+  - mismatch warning when requested vault may not match resolved vault
 - No-results output now includes:
   - active vault and source
   - default vault config path
   - Obsidian CLI executable reference
 - Replaced ambiguous `(default)` wording with clearer vault-state messaging.
+- Added `--diagnose` to print vault/CLI diagnostics without running a search.
 
 ### Reliability
 - Fixed dry-run code path to construct Obsidian client correctly.

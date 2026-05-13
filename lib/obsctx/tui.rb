@@ -40,9 +40,15 @@ module ObsidianContext
       @intro_rendered = false
     end
 
-    def prompt_query(default:, vault:, vault_source:, default_vault:, default_vault_path:)
+    def prompt_query(default:, context:)
       draw_intro
-      draw_startup_vault_status(vault, vault_source, default_vault, default_vault_path)
+      draw_startup_vault_status(
+        context[:vault],
+        context[:vault_source],
+        context[:default_vault],
+        context[:default_vault_path],
+        context[:connection_report]
+      )
       @stdout.print render("[bold][cyan]Search query[/] [dim](default: #{default})[/] [dim]| type 'v' for vault config, 'q' to quit:[/] ")
       input = @stdin.gets&.strip
       return QueryPrompt.new(query: nil, open_vault_config: false, quit: true) if input.nil?
@@ -419,10 +425,17 @@ module ObsidianContext
       Terminal.render(markup, enabled: @color)
     end
 
-    def draw_startup_vault_status(vault, vault_source, default_vault, default_vault_path)
+    def draw_startup_vault_status(vault, vault_source, default_vault, default_vault_path, connection_report)
       @stdout.puts render("[dim]active vault:[/] #{format_vault_label(vault, vault_source)}")
       @stdout.puts render("[dim]saved default:[/] #{format_saved_default(default_vault)}")
       @stdout.puts render("[dim]default config path:[/] #{default_vault_path}")
+      @stdout.puts render("[dim]obsidian cli:[/] #{connection_report[:executable]}")
+      @stdout.puts render("[dim]obsidian version:[/] #{connection_report[:version] || 'unknown'}")
+      status_style = connection_report[:status] == 'ok' ? '[green]ok[/]' : '[red]error[/]'
+      @stdout.puts render("[dim]connection check:[/] #{status_style}")
+      @stdout.puts render("[dim]resolved vault:[/] #{connection_report[:resolved_vault_summary]}") if connection_report[:resolved_vault_summary]
+      @stdout.puts render("[amber]diagnostic:[/] #{connection_report[:warning]}") if connection_report[:warning]
+      @stdout.puts render('[dim]vault target semantics: CWD vault if inside one, otherwise active Obsidian vault unless overridden.[/]')
       @stdout.puts
     end
 

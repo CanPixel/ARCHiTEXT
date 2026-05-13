@@ -118,10 +118,19 @@ module ObsidianContext
 
       result = tui.prompt_query(
         default: 'tag:#project/active',
-        vault: nil,
-        vault_source: 'obsidian default',
-        default_vault: nil,
-        default_vault_path: '/tmp/default_vault'
+        context: {
+          vault: nil,
+          vault_source: 'obsidian default',
+          default_vault: nil,
+          default_vault_path: '/tmp/default_vault',
+          connection_report: {
+            executable: 'obsidian',
+            status: 'ok',
+            version: '1.0.0',
+            resolved_vault_summary: 'Main | /vault',
+            warning: nil
+          }
+        }
       )
 
       assert result.open_vault_config
@@ -137,10 +146,19 @@ module ObsidianContext
 
       result = tui.prompt_query(
         default: 'tag:#project/active',
-        vault: nil,
-        vault_source: 'obsidian default',
-        default_vault: nil,
-        default_vault_path: '/tmp/default_vault'
+        context: {
+          vault: nil,
+          vault_source: 'obsidian default',
+          default_vault: nil,
+          default_vault_path: '/tmp/default_vault',
+          connection_report: {
+            executable: 'obsidian',
+            status: 'ok',
+            version: '1.0.0',
+            resolved_vault_summary: 'Main | /vault',
+            warning: nil
+          }
+        }
       )
 
       assert result.quit
@@ -327,6 +345,23 @@ module ObsidianContext
       end
     end
 
+    def test_diagnose_prints_connection_details
+      with_fake_obsidian do |obsidian_path|
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+          CLI.new(['--diagnose'], io: { stdout:, stderr: }).run
+        end
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, 'ARCHiTEXT diagnostics'
+        assert_includes stdout.string, 'connection check: ok'
+        assert_includes stdout.string, 'resolved vault: Main Vault | /vaults/main'
+      end
+    end
+
     private
 
     class FakeClipboard
@@ -377,8 +412,14 @@ module ObsidianContext
         require "json"
 
         command = ARGV.find { |arg| %w[search read].include?(arg) }
+        command ||= ARGV.find { |arg| %w[version vault].include?(arg) }
 
         case command
+        when "version"
+          puts "1.12.7"
+        when "vault"
+          puts "name Main Vault"
+          puts "path /vaults/main"
         when "search"
           puts #{JSON.dump(search_paths).inspect}
         when "read"

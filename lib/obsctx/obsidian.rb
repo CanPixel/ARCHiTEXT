@@ -24,6 +24,14 @@ module ObsidianContext
       run('read', "path=#{path}")
     end
 
+    def version
+      run('version').to_s.strip
+    end
+
+    def vault_info
+      run('vault').to_s
+    end
+
     private
 
     def run(*args)
