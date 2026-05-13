@@ -14,6 +14,7 @@ require 'obsctx/search_results'
 require 'obsctx/selection_parser'
 require 'obsctx/settings'
 require 'obsctx/terminal'
+require 'obsctx/tui'
 
 module ObsidianContext
   class SearchResultsTest < Minitest::Test
@@ -105,6 +106,46 @@ module ObsidianContext
 
       assert_includes rendered, "\e[38;2;91;220;255m"
       assert_includes rendered, Terminal::RESET
+    end
+  end
+
+  class TUITest < Minitest::Test
+    def test_prompt_query_accepts_v_for_vault_config
+      stdin = StringIO.new("v\n")
+      stdout = StringIO.new
+      stderr = StringIO.new
+      tui = TUI.new(stdin:, stdout:, stderr:, app_name: 'architext')
+
+      result = tui.prompt_query(
+        default: 'tag:#project/active',
+        vault: nil,
+        vault_source: 'obsidian default',
+        default_vault: nil,
+        default_vault_path: '/tmp/default_vault'
+      )
+
+      assert result.open_vault_config
+      refute result.quit
+      assert_nil result.query
+    end
+
+    def test_prompt_query_accepts_q_to_quit
+      stdin = StringIO.new("q\n")
+      stdout = StringIO.new
+      stderr = StringIO.new
+      tui = TUI.new(stdin:, stdout:, stderr:, app_name: 'architext')
+
+      result = tui.prompt_query(
+        default: 'tag:#project/active',
+        vault: nil,
+        vault_source: 'obsidian default',
+        default_vault: nil,
+        default_vault_path: '/tmp/default_vault'
+      )
+
+      assert result.quit
+      refute result.open_vault_config
+      assert_nil result.query
     end
   end
 
@@ -280,8 +321,8 @@ module ObsidianContext
           end
 
           assert_equal 1, code
-          assert_includes stderr.string, 'active vault:'
           assert_includes stderr.string, 'Main Vault'
+          assert_includes stderr.string, '(saved default)'
         end
       end
     end

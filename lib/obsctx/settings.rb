@@ -4,6 +4,8 @@ require 'fileutils'
 
 module ObsidianContext
   class Settings
+    attr_reader :config_path
+
     def initialize(config_path: default_config_path)
       @config_path = config_path
     end

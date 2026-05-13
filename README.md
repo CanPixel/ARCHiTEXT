@@ -12,8 +12,8 @@
   <a href="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml">
     <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
-  <a href="https://rubygems.org/gems/ARCHiTEXT">
-    <img src="https://img.shields.io/badge/version-v0.1.1-5BE8B8.svg" alt="Version 0.1.1">
+  <a href="https://rubygems.org/gems/architext">
+    <img src="https://img.shields.io/badge/version-v0.1.2-5BE8B8.svg" alt="Version 0.1.2">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
@@ -49,6 +49,7 @@ architext --query "tag:#project/active"
 
 ```sh
 gem install architext
+gem uninstall architext
 ```
 
 ### From Source
@@ -118,8 +119,18 @@ architext --query "tag:#project/active" --all --stdout
 - `--vault` sets the vault only for the current run.
 - `--set-default-vault` stores a persistent default vault for future runs.
 - If `--vault` is omitted, the persistent default vault is used when available.
+- At the search prompt, type `v` to open vault configuration mode.
 - Press `v` in the TUI selection screen to change vault inline for the current session.
 - The active vault is shown in the TUI header (`vault: ...`) so target scope is always visible.
+- Vault path resolution is performed by the Obsidian CLI (`vault=<name_or_id>`); ARCHiTEXT displays the vault reference and source.
+
+### Search Prompt Controls
+
+| Input | Action |
+| --- | --- |
+| `enter` | Run search with default query |
+| `v` | Open vault configuration screen |
+| `q` | Quit |
 
 ### TUI Controls
 
@@ -144,7 +155,8 @@ If you see an error about `obsidian` command not found:
 
 ### No Results But Notes Exist
 - Verify the active vault shown in the TUI header.
-- Use `v` in the TUI to switch vault and rerun the query.
+- At the search prompt, type `v` to open vault configuration.
+- In selection, use `v` to switch vault and rerun the query.
 - Set a persistent vault with `--set-default-vault "Your Vault"`.
 - For one-off runs, pass `--vault "Your Vault"` explicitly.
 

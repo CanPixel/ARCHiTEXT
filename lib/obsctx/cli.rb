@@ -15,6 +15,10 @@ require_relative 'version'
 module ObsidianContext
   class CLI
     DEFAULT_QUERY = 'tag:#project/active'
+    VAULT_SOURCE_EXPLICIT = '--vault'
+    VAULT_SOURCE_SAVED_DEFAULT = 'saved default'
+    VAULT_SOURCE_SESSION = 'session'
+    VAULT_SOURCE_OBSIDIAN_DEFAULT = 'obsidian default'
 
     def initialize(argv, io: {}, app_name: 'architext', dependencies: {})
       @stdin = io.fetch(:stdin, $stdin)
@@ -33,6 +37,7 @@ module ObsidianContext
         dry_run: false,
         all: false
       }
+      @vault_source = VAULT_SOURCE_OBSIDIAN_DEFAULT
     end
 
     def run
@@ -45,7 +50,7 @@ module ObsidianContext
       return no_selection if selected_paths.empty?
 
       if @options[:dry_run]
-        print_dry_run(selected_paths, client)
+        print_dry_run(selected_paths, Obsidian.new(vault: @options[:vault]))
         return 0
       end
 
@@ -119,23 +124,31 @@ module ObsidianContext
 
     def gather_selection
       query = @options[:query] || prompt_for_query
+      return nil if query.nil?
+
       vault = @options[:vault]
+      vault_source = @vault_source
 
       loop do
         client = Obsidian.new(vault:)
         paths = client.search(query)
-        return no_results_for_selection(query, vault) if paths.empty?
+        return no_results_for_selection(query, vault, vault_source) if paths.empty?
 
-        selection = select_paths(paths, query:, vault:)
+        selection = select_paths(paths, query:, vault:, vault_source:)
         if selection.new_vault
           vault = selection.new_vault.strip
           vault = nil if vault.empty?
           @options[:vault] = vault
+          vault_source = vault.nil? ? VAULT_SOURCE_OBSIDIAN_DEFAULT : VAULT_SOURCE_SESSION
+          @vault_source = vault_source
           next
         end
 
         if selection.reprompt_query
           query = prompt_for_query
+
+          return nil if query.nil?
+
           next
         end
 
@@ -163,18 +176,39 @@ module ObsidianContext
     end
 
     def apply_default_vault
-      return if @options[:vault]
+      if @options[:vault]
+        @vault_source = VAULT_SOURCE_EXPLICIT
+        return
+      end
 
-      @options[:vault] = @settings.default_vault
+      default_vault = @settings.default_vault
+      @options[:vault] = default_vault
+      @vault_source = default_vault ? VAULT_SOURCE_SAVED_DEFAULT : VAULT_SOURCE_OBSIDIAN_DEFAULT
     end
 
     def prompt_for_query
       return DEFAULT_QUERY unless interactive?
 
-      ui.prompt_query(default: DEFAULT_QUERY)
+      loop do
+        input = ui.prompt_query(
+          default: DEFAULT_QUERY,
+          vault: @options[:vault],
+          vault_source: @vault_source,
+          default_vault: @settings.default_vault,
+          default_vault_path: @settings.config_path
+        )
+        return nil if input.quit
+
+        if input.open_vault_config
+          handle_prompt_vault_config
+          next
+        end
+
+        return input.query
+      end
     end
 
-    def select_paths(paths, query:, vault:)
+    def select_paths(paths, query:, vault:, vault_source:)
       return TUI::Selection.new(paths:, new_query: nil, new_vault: nil, reprompt_query: false) if @options[:all]
 
       unless interactive?
@@ -182,7 +216,38 @@ module ObsidianContext
               'interactive selection requires a TTY; rerun with --all or provide input from a terminal'
       end
 
-      ui.select(paths, query:, vault:)
+      ui.select(paths, query:, vault:, vault_source:)
+    end
+
+    def handle_prompt_vault_config
+      loop do
+        action = ui.prompt_vault_config(
+          active_vault: @options[:vault],
+          active_vault_source: @vault_source,
+          default_vault: @settings.default_vault,
+          default_vault_path: @settings.config_path
+        )
+        return if action.back
+
+        if action.clear_default
+          @settings.clear_default_vault
+          ui.show_info('Default vault cleared.')
+          next
+        end
+
+        if action.set_default_vault
+          @settings.default_vault = action.set_default_vault
+          ui.show_info("Default vault set to: #{action.set_default_vault}")
+          next
+        end
+
+        next unless action.session_vault
+
+        vault = action.session_vault.strip
+        vault = nil if vault.empty?
+        @options[:vault] = vault
+        @vault_source = vault.nil? ? VAULT_SOURCE_OBSIDIAN_DEFAULT : VAULT_SOURCE_SESSION
+      end
     end
 
     def print_dry_run(selected_paths, client)
@@ -209,8 +274,14 @@ module ObsidianContext
       raise Obsidian::CommandFailed, "#{e.message}\nTip: rerun with --stdout to print the bundle."
     end
 
-    def no_results_for_selection(query, vault)
-      ui.show_no_results(query, vault:)
+    def no_results_for_selection(query, vault, vault_source)
+      ui.show_no_results(
+        query,
+        vault:,
+        vault_source:,
+        default_vault_path: @settings.config_path,
+        obsidian_executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian')
+      )
       nil
     end
 

@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 Gem::Specification.new do |spec|
-  spec.name = "ARCHiTEXT"
-  spec.version = "0.1.1"
+  spec.name = "architext"
+  spec.version = "0.1.2"
   spec.summary = "A visual Obsidian context stitching TUI for agent workflows."
   spec.description = "A terminal interface to interactively select and bundle Obsidian notes for AI agent context."
   spec.homepage = "https://github.com/CanPixel/ARCHiTEXT"

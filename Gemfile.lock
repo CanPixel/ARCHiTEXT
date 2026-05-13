@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    ARCHiTEXT (0.1.1)
+    architext (0.1.2)
       tty-prompt (~> 0.23)
 
 GEM
@@ -64,7 +64,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  ARCHiTEXT!
+  architext!
   minitest (~> 5.0)
   rubocop (~> 1.60)
   rubocop-minitest (~> 0.34)
@@ -72,7 +72,7 @@ DEPENDENCIES
   tty-prompt (~> 0.23)
 
 CHECKSUMS
-  ARCHiTEXT (0.1.1)
+  architext (0.1.2)
   ast (2.4.3) sha256=954615157c1d6a382bc27d690d973195e79db7f55e9765ac7c481c60bdb4d383
   json (2.19.5) sha256=218a18553e4801d579ca7e0f5bc72bafd776d7397238a1fb4e74db5b0a812c59
   language_server-protocol (3.17.0.5) sha256=fd1e39a51a28bf3eec959379985a72e296e9f9acfce46f6a79d31ca8760803cc
