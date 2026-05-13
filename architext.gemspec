@@ -5,15 +5,20 @@ Gem::Specification.new do |spec|
   spec.version = "0.1.6"
   spec.summary = "A visual Obsidian context stitching TUI for agent workflows."
   spec.description = "A terminal interface to interactively select and bundle Obsidian notes for AI agent context."
-  spec.homepage = "https://github.com/CanPixel/ARCHiTEXT"
+  spec.homepage = "https://github.com/CanPixel/ARCHiTEXT#readme"
   spec.authors = ["Can"]
-  spec.files = Dir["bin/*", "lib/**/*.rb", "README.md"]
+  spec.files = %w[LICENSE README.md CHANGELOG.md] + Dir["bin/*", "lib/**/*.rb"]
+  spec.bindir = "bin"
   spec.executables = ["architext", "obsctx"]
   spec.require_paths = ["lib"]
   spec.required_ruby_version = ">= 3.2"
   spec.license = "MIT"
 
-  spec.metadata["allowed_push_host"] = "https://example.invalid"
+  spec.metadata["homepage_uri"] = spec.homepage
+  spec.metadata["source_code_uri"] = "https://github.com/CanPixel/ARCHiTEXT"
+  spec.metadata["bug_tracker_uri"] = "https://github.com/CanPixel/ARCHiTEXT/issues"
+  spec.metadata["changelog_uri"] = "https://github.com/CanPixel/ARCHiTEXT/blob/master/CHANGELOG.md"
+  spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.add_dependency "tty-prompt", "~> 0.23"
 
