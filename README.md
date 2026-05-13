@@ -1,7 +1,7 @@
-# Architext
+# ARCHiTEXT
 
 <p align="center">
-  <img src="assets/logo.png" alt="ARCHiTEXT Logo" width="200">
+  <img src="assets/logo.svg" alt="ARCHiTEXT Logo" width="200">
   <br>
   <b>The bridge between your Obsidian vault and LLMs.</b>
   <br>
