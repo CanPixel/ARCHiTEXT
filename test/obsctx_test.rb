@@ -308,10 +308,23 @@ module ObsidianContext
 
     def with_fake_obsidian(search_paths: ['Ideas/Game.md', 'Plans/Roadmap.md'])
       Dir.mktmpdir do |dir|
-        obsidian_path = File.join(dir, 'obsidian')
-        File.write(obsidian_path, fake_obsidian_script(search_paths))
-        FileUtils.chmod('+x', obsidian_path)
+        obsidian_path = build_fake_obsidian_executable(dir, search_paths)
         yield obsidian_path
+      end
+    end
+
+    def build_fake_obsidian_executable(dir, search_paths)
+      if Gem.win_platform?
+        script_path = File.join(dir, 'obsidian.rb')
+        launcher_path = File.join(dir, 'obsidian.cmd')
+        File.write(script_path, fake_obsidian_script(search_paths))
+        File.write(launcher_path, "@echo off\r\nruby \"%~dp0obsidian.rb\" %*\r\n")
+        launcher_path
+      else
+        path = File.join(dir, 'obsidian')
+        File.write(path, fake_obsidian_script(search_paths))
+        FileUtils.chmod('+x', path)
+        path
       end
     end
 
@@ -360,9 +373,10 @@ module ObsidianContext
 
     def test_windows_uses_clip_when_available
       Dir.mktmpdir do |dir|
-        touch_executable(File.join(dir, 'clip.exe'))
         captured = nil
         runner = lambda do |*args, stdin_data:|
+          raise Errno::ENOENT, args.first unless args.first == 'clip'
+
           captured = [args, stdin_data]
           ['', '', FakeStatus.new(true, 0)]
         end
@@ -382,9 +396,10 @@ module ObsidianContext
 
     def test_linux_falls_back_to_xclip_when_wl_copy_is_missing
       Dir.mktmpdir do |dir|
-        touch_executable(File.join(dir, 'xclip'))
         captured = nil
         runner = lambda do |*args, stdin_data:|
+          raise Errno::ENOENT, args.first unless args.first == 'xclip'
+
           captured = [args, stdin_data]
           ['', '', FakeStatus.new(true, 0)]
         end
@@ -404,9 +419,9 @@ module ObsidianContext
 
     def test_raises_when_no_clipboard_command_is_available
       clipboard = Clipboard.new(
-        runner: lambda { |*_args, stdin_data:|
+        runner: lambda { |*args, stdin_data:|
           _ = stdin_data
-          ['', '', FakeStatus.new(true, 0)]
+          raise Errno::ENOENT, args.first
         },
         env: { 'PATH' => '' },
         host_os: 'linux-gnu'
@@ -414,13 +429,6 @@ module ObsidianContext
 
       error = assert_raises(Clipboard::UnsupportedPlatform) { clipboard.copy('x') }
       assert_includes error.message, 'No supported clipboard command found'
-    end
-
-    private
-
-    def touch_executable(path)
-      File.write(path, '')
-      FileUtils.chmod('+x', path)
     end
   end
 end
