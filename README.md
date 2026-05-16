@@ -25,6 +25,8 @@
 
 <img src="assets/social-preview.svg" alt="ARCHiTEXT Social Preview" width="1080">
 
+As LLM context windows grow, the way we feed them data needs to scale.
+
 `ARCHiTEXT` is a standalone Ruby TUI for stitching Obsidian notes into an LLM-friendly Markdown context bundle. It uses the official `obsidian` CLI as the source of truth for vault search and file reads, providing a visual terminal interface for selecting notes.
 
 ## 🚀 Quick Start
