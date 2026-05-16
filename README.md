@@ -30,8 +30,6 @@ As LLM context windows grow, the way we feed them data **needs to scale**.
 
 Modern AI agents thrive on context, but gathering that context manually from a sprawling Obsidian vault is tedious. Architext transforms this process into a seamless, visual experience. It allows you to search, filter, and "stitch" multiple notes into a single, structured Markdown bundle that agents can consume immediately.
 
-So... 
-
 # Welcome to ARCHiTEXT!
 
 `ARCHiTEXT` is a standalone Ruby TUI for stitching Obsidian notes into an LLM-friendly Markdown context bundle. It uses the official `obsidian` CLI as the source of truth for vault search and file reads, providing a visual terminal interface for selecting notes.
