@@ -65,6 +65,11 @@ architext --query "tag:#project/active" --all --stdout
 ```sh
 gem install architext
 architext --version
+```
+
+### Uninstall
+
+```sh
 gem uninstall architext
 ```
 
@@ -174,6 +179,16 @@ If you see an error about `obsidian` command not found:
 2. Verify that you have installed the `obsidian` CLI tool.
 3. Check if `obsidian` is in your `PATH` by running `which obsidian` (macOS/Linux) or `where obsidian` (Windows).
 4. If you previously exported `OBSCTX_OBSIDIAN`, rename it to `ARCHITEXT_OBSIDIAN`.
+
+### Command Not Found After Gem Install
+If `gem install architext` succeeds but `architext` is not found, your Ruby executable directory is not on your shell `PATH`.
+
+1. Find RubyGems executable directory:
+   - `gem env | grep "EXECUTABLE DIRECTORY"`
+2. Add that directory to your shell `PATH` (for `zsh`, update `~/.zshrc`).
+3. Restart your shell and verify:
+   - `which architext`
+   - `architext --version`
 
 ### No Results But Notes Exist
 - Verify the active vault shown in the TUI header.
