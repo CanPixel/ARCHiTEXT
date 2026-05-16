@@ -1,15 +1,17 @@
 # frozen_string_literal: true
 
+require_relative "lib/architext/version"
+
 Gem::Specification.new do |spec|
   spec.name = "architext"
-  spec.version = "0.1.6"
+  spec.version = Architext::VERSION
   spec.summary = "A visual Obsidian context stitching TUI for agent workflows."
   spec.description = "A terminal interface to interactively select and bundle Obsidian notes for AI agent context."
   spec.homepage = "https://github.com/CanPixel/ARCHiTEXT#readme"
   spec.authors = ["Can"]
   spec.files = %w[LICENSE README.md CHANGELOG.md] + Dir["bin/*", "lib/**/*.rb"]
   spec.bindir = "bin"
-  spec.executables = ["architext", "obsctx"]
+  spec.executables = ["architext"]
   spec.require_paths = ["lib"]
   spec.required_ruby_version = ">= 3.2"
   spec.license = "MIT"
@@ -19,6 +21,7 @@ Gem::Specification.new do |spec|
   spec.metadata["bug_tracker_uri"] = "https://github.com/CanPixel/ARCHiTEXT/issues"
   spec.metadata["changelog_uri"] = "https://github.com/CanPixel/ARCHiTEXT/blob/master/CHANGELOG.md"
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
   spec.add_dependency "tty-prompt", "~> 0.23"
 

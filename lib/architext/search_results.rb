@@ -2,7 +2,7 @@
 
 require 'json'
 
-module ObsidianContext
+module Architext
   class SearchResults
     def self.parse(output)
       new(output).parse

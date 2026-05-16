@@ -13,7 +13,7 @@
     <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
   <a href="https://rubygems.org/gems/architext">
-    <img src="https://img.shields.io/badge/version-v0.1.6-5BE8B8.svg" alt="Version 0.1.6">
+    <img src="https://img.shields.io/badge/version-v0.2.0-5BE8B8.svg" alt="Version 0.2.0">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
@@ -64,6 +64,7 @@ architext --query "tag:#project/active" --all --stdout
 
 ```sh
 gem install architext
+architext --version
 gem uninstall architext
 ```
 
@@ -71,8 +72,9 @@ gem uninstall architext
 
 ```sh
 git clone https://github.com/CanPixel/ARCHiTEXT.git
-cd architext
+cd ARCHiTEXT
 ./bin/setup
+ruby bin/architext --version
 gem build architext.gemspec
 gem install ./architext-*.gem
 ```
@@ -89,16 +91,16 @@ Architext relies on the [Obsidian CLI](https://github.com/obsidianmd/obsidian-cl
 
 ### Setting the Obsidian CLI Path
 
-If the CLI is not in your `PATH`, you can set the `OBSCTX_OBSIDIAN` environment variable:
+If the CLI is not in your `PATH`, you can set the `ARCHITEXT_OBSIDIAN` environment variable:
 
 ```sh
-export OBSCTX_OBSIDIAN="/path/to/obsidian"
+export ARCHITEXT_OBSIDIAN="/path/to/obsidian"
 ```
 
 PowerShell:
 
 ```powershell
-$env:OBSCTX_OBSIDIAN = "C:\path\to\obsidian.exe"
+$env:ARCHITEXT_OBSIDIAN = "C:\path\to\obsidian.exe"
 ```
 
 ## 🛠 Usage
@@ -171,6 +173,7 @@ If you see an error about `obsidian` command not found:
 1. Ensure the Obsidian desktop app is installed.
 2. Verify that you have installed the `obsidian` CLI tool.
 3. Check if `obsidian` is in your `PATH` by running `which obsidian` (macOS/Linux) or `where obsidian` (Windows).
+4. If you previously exported `OBSCTX_OBSIDIAN`, rename it to `ARCHITEXT_OBSIDIAN`.
 
 ### No Results But Notes Exist
 - Verify the active vault shown in the TUI header.

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ObsidianContext
+module Architext
   FileContent = Data.define(:path, :content)
 
   class Bundle

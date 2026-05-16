@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ObsidianContext
+module Architext
   class SelectionParser
     def initialize(paths)
       @paths = paths

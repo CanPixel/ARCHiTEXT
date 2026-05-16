@@ -2,7 +2,7 @@
 
 require_relative 'selection_parser'
 
-module ObsidianContext
+module Architext
   class Picker
     def initialize(stdin:, stdout:)
       @stdin = stdin

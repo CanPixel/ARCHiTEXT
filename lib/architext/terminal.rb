@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ObsidianContext
+module Architext
   module Terminal
     RESET = "\e[0m"
     HIDE_CURSOR = "\e[?25l"
