@@ -5,7 +5,7 @@ require 'io/console'
 require_relative 'terminal'
 require_relative 'version'
 
-module ObsidianContext
+module Architext
   # rubocop:disable Metrics/ClassLength
   class TUI
     HELP = 'Up/k Down/j move  space select  a all  / filter  n new search  v vault  enter confirm  q back'
@@ -213,7 +213,7 @@ module ObsidianContext
           @stdout.puts center(styled, width)
         end
         @stdout.puts center(render('[dim]Architect Obsidian context and stitch for agent work[/]'), width)
-        version = "v#{ObsidianContext::VERSION}"
+        version = "v#{Architext::VERSION}"
         styled_version = version_style ? Terminal.paint(version, version_style, enabled: @color) : version
         @stdout.puts center(styled_version, width)
         @stdout.puts

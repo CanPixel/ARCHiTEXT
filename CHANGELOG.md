@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-05-16
+
+### Changed
+- Naming normalization release: align gem/library/executable naming around `architext` following RubyGems consistent naming guidance.
+- Rename internal Ruby namespace from `ObsidianContext` to `Architext`.
+- Rename library layout from `lib/obsctx/*` to `lib/architext/*` with `lib/architext.rb` as the canonical entrypoint.
+- Standardize executable usage on `bin/architext` and remove the legacy `obsctx` executable from the gem package.
+- Standardize Obsidian CLI override environment variable on `ARCHITEXT_OBSIDIAN`.
+
 ## [0.1.6] - 2026-05-13
 
 ### Fixed

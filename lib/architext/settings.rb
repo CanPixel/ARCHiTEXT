@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-module ObsidianContext
+module Architext
   class Settings
     attr_reader :config_path
 

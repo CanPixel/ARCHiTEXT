@@ -12,7 +12,7 @@ require_relative 'settings'
 require_relative 'tui'
 require_relative 'version'
 
-module ObsidianContext
+module Architext
   # rubocop:disable Metrics/ClassLength
   class CLI
     DEFAULT_QUERY = 'tag:#project/active'
@@ -69,7 +69,7 @@ module ObsidianContext
       2
     rescue Obsidian::CommandNotFound => e
       ui.show_error "#{@app_name}: #{e.message}"
-      @stderr.puts 'Install/enable Obsidian CLI, or set OBSCTX_OBSIDIAN to its path.'
+      @stderr.puts 'Install/enable Obsidian CLI, or set ARCHITEXT_OBSIDIAN to its path.'
       127
     rescue Obsidian::CommandFailed => e
       ui.show_error "#{@app_name}: #{e.message}"
@@ -124,7 +124,7 @@ module ObsidianContext
         end
 
         opts.on('--version', 'Show version') do
-          @stdout.puts ObsidianContext::VERSION
+          @stdout.puts Architext::VERSION
           exit 0
         end
       end
@@ -254,7 +254,7 @@ module ObsidianContext
 
     def build_connection_report
       report = {
-        executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian'),
+        executable: ENV.fetch('ARCHITEXT_OBSIDIAN', 'obsidian'),
         status: 'unknown',
         version: nil,
         resolved_vault_summary: nil,
@@ -278,7 +278,7 @@ module ObsidianContext
 
     def run_diagnostics
       report = build_connection_report
-      @stdout.puts "ARCHiTEXT diagnostics (v#{ObsidianContext::VERSION})"
+      @stdout.puts "ARCHiTEXT diagnostics (v#{Architext::VERSION})"
       @stdout.puts "active vault ref: #{@options[:vault] || '(none selected)'}"
       @stdout.puts "vault source: #{@vault_source}"
       @stdout.puts "saved default vault: #{@settings.default_vault || '(none)'}"
@@ -297,7 +297,7 @@ module ObsidianContext
         vault:,
         vault_source:,
         default_vault_path: @settings.config_path,
-        obsidian_executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian')
+        obsidian_executable: ENV.fetch('ARCHITEXT_OBSIDIAN', 'obsidian')
       )
       interactive? ? prompt_for_query : nil
     end

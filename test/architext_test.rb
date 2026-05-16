@@ -7,16 +7,16 @@ require 'tmpdir'
 
 $LOAD_PATH.unshift(File.expand_path('../lib', __dir__))
 
-require 'obsctx/bundle'
-require 'obsctx/clipboard'
-require 'obsctx/cli'
-require 'obsctx/search_results'
-require 'obsctx/selection_parser'
-require 'obsctx/settings'
-require 'obsctx/terminal'
-require 'obsctx/tui'
+require 'architext/bundle'
+require 'architext/clipboard'
+require 'architext/cli'
+require 'architext/search_results'
+require 'architext/selection_parser'
+require 'architext/settings'
+require 'architext/terminal'
+require 'architext/tui'
 
-module ObsidianContext
+module Architext
   class SearchResultsTest < Minitest::Test
     def test_parses_json_array_of_paths
       output = JSON.dump(['Ideas/Game.md', 'Plans/Roadmap.md'])
@@ -280,7 +280,7 @@ module ObsidianContext
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all', '--stdout'],
             io: { stdout:, stderr: }
@@ -301,7 +301,7 @@ module ObsidianContext
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all', '--stdout'],
             io: { stdout:, stderr: }
@@ -319,7 +319,7 @@ module ObsidianContext
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'tag:#missing', '--all', '--stdout'],
             io: { stdout:, stderr: },
@@ -340,7 +340,7 @@ module ObsidianContext
         stderr = StringIO.new
         clipboard = FakeClipboard.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all'],
             io: { stdout:, stderr: },
@@ -361,7 +361,7 @@ module ObsidianContext
         stderr = StringIO.new
         clipboard = FailingClipboard.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all'],
             io: { stdout:, stderr: },
@@ -384,7 +384,7 @@ module ObsidianContext
         CLI.new(['--version'], io: { stdout:, stderr: }).run
       end
 
-      assert_equal "#{ObsidianContext::VERSION}\n", stdout.string
+      assert_equal "#{Architext::VERSION}\n", stdout.string
       assert_empty stderr.string
     end
 
@@ -436,7 +436,7 @@ module ObsidianContext
         settings.default_vault = 'Main Vault'
 
         with_fake_obsidian(search_paths: []) do |obsidian_path|
-          code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+          code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
             CLI.new(
               ['--query', 'tag:#missing', '--all', '--stdout'],
               io: { stdout:, stderr: },
@@ -457,7 +457,7 @@ module ObsidianContext
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
             ['--query', 'game', '--all', '--stdout'],
             io: { stdout:, stderr: }
@@ -475,7 +475,7 @@ module ObsidianContext
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('OBSCTX_OBSIDIAN' => obsidian_path) do
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(['--diagnose'], io: { stdout:, stderr: }).run
         end
 

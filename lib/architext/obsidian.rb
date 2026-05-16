@@ -5,12 +5,12 @@ require 'shellwords'
 
 require_relative 'search_results'
 
-module ObsidianContext
+module Architext
   class Obsidian
     class CommandFailed < StandardError; end
     class CommandNotFound < CommandFailed; end
 
-    def initialize(vault: nil, executable: ENV.fetch('OBSCTX_OBSIDIAN', 'obsidian'))
+    def initialize(vault: nil, executable: ENV.fetch('ARCHITEXT_OBSIDIAN', 'obsidian'))
       @vault = vault
       @executable = executable
     end

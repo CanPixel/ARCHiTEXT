@@ -21,6 +21,6 @@ jobs:
           ruby-version: '3.3'
           bundler-cache: true
       - name: Run tests
-        run: bundle exec ruby test/obsctx_test.rb
+        run: bundle exec ruby test/architext_test.rb
       - name: Run linter
         run: bundle exec rubocop

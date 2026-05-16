@@ -3,7 +3,7 @@
 require 'open3'
 require 'rbconfig'
 
-module ObsidianContext
+module Architext
   class Clipboard
     class Error < StandardError; end
     class UnsupportedPlatform < Error; end
