@@ -12,13 +12,26 @@
   <a href="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml">
     <img src="https://github.com/CanPixel/ARCHiTEXT/actions/workflows/ci.yml/badge.svg" alt="CI Status">
   </a>
+  <img src="https://img.shields.io/badge/maintained-yes-green.svg" alt="Maintained">
+  <a href="https://clickgems.clickhouse.com/dashboard/architext">
+    <img src="https://img.shields.io/gem/dt/architext" alt="RubyGem Downloads">
+  </a>
+  <a href="https://rubygems.org/gems/architext">
+    <img src="https://img.shields.io/github/stars/CanPixel" alt="GitHub Stars">
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white" alt="Ruby">
+  <a href="https://rubygems.org/gems/architext">
+    <img src="https://img.shields.io/gem/v/architext" alt="License">
+  </a>
   <a href="https://rubygems.org/gems/architext">
     <img src="https://img.shields.io/badge/version-v0.2.0-5BE8B8.svg" alt="Version 0.2.0">
   </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License">
   </a>
-  <img src="https://img.shields.io/badge/maintained-yes-green.svg" alt="Maintained">
 </p>
 
 ---
