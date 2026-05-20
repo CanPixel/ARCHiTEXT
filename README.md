@@ -41,7 +41,7 @@
 
 As LLM context windows grow, the way we feed them data **needs to scale**.
 
-Modern AI agents thrive on context, but gathering that context manually from a sprawling Obsidian vault is tedious. Architext transforms this process into a seamless, visual experience. It allows you to search, filter, and "stitch" multiple notes into a single, structured Markdown bundle that agents can consume immediately.
+Modern AI agents thrive on context, but gathering that context manually from a sprawling Obsidian vault is tedious. ARCHiTEXT transforms this process into a seamless, visual experience. It allows you to search, filter, and "stitch" multiple notes into a single, structured Markdown bundle that agents can consume immediately.
 
 # Welcome to ARCHiTEXT!
 
