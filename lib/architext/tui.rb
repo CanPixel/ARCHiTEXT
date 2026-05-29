@@ -8,7 +8,7 @@ require_relative 'version'
 module Architext
   # rubocop:disable Metrics/ClassLength
   class TUI
-    HELP = 'Up/k Down/j move  space select  a all  / filter  n new search  v vault  enter confirm  q back'
+    HELP = 'Up/k Down/j move  space select  a all  / filter  n new search  v source  enter confirm  q back'
     KEY_BINDINGS = {
       ' ' => :space,
       'k' => :up,
@@ -27,9 +27,9 @@ module Architext
       '/_/  |_/_/   \\___/_/ /_/_/\\__/\\___/_/|_|\\__/  '
     ].freeze
 
-    Selection = Data.define(:paths, :new_query, :new_vault, :reprompt_query)
+    Selection = Data.define(:paths, :new_query, :source_config, :reprompt_query)
     QueryPrompt = Data.define(:query, :open_vault_config, :quit)
-    VaultConfigAction = Data.define(:session_vault, :set_default_vault, :clear_default, :back)
+    SourceConfigAction = Data.define(:session_root, :session_vault, :set_default_vault, :clear_default, :back)
 
     def initialize(stdin:, stdout:, stderr:, app_name:)
       @stdin = stdin
@@ -42,14 +42,8 @@ module Architext
 
     def prompt_query(default:, context:)
       draw_intro
-      draw_startup_vault_status(
-        context[:vault],
-        context[:vault_source],
-        context[:default_vault],
-        context[:default_vault_path],
-        context[:connection_report]
-      )
-      @stdout.print render("[bold][cyan]Search query[/] [dim](default: #{default})[/] [dim]| type 'v' for vault config, 'q' to quit:[/] ")
+      draw_startup_source_status(context)
+      @stdout.print render("[bold][cyan]Search query[/] [dim](default: #{default})[/] [dim]| type 'v' for source config, 'q' to quit:[/] ")
       input = @stdin.gets&.strip
       return QueryPrompt.new(query: nil, open_vault_config: false, quit: true) if input.nil?
 
@@ -61,49 +55,54 @@ module Architext
     end
 
     # rubocop:disable Metrics/AbcSize
-    def prompt_vault_config(active_vault:, active_vault_source:, default_vault:, default_vault_path:)
+    def prompt_source_config(context)
       draw_intro
-      @stdout.puts render('[bold][cyan]Vault Configuration[/]')
-      @stdout.puts render("[dim]active:[/] #{format_vault_label(active_vault, active_vault_source)}")
-      @stdout.puts render("[dim]saved default:[/] #{format_saved_default(default_vault)}")
-      @stdout.puts render("[dim]default config path:[/] #{default_vault_path}")
-      @stdout.puts render('[dim]vault path resolution is handled by Obsidian CLI via vault=<name_or_id>.[/]')
+      @stdout.puts render('[bold][cyan]Source Configuration[/]')
+      @stdout.puts render("[dim]active source:[/] [cyan]#{context[:source]}[/]")
+      @stdout.puts render("[dim]native root:[/] #{format_root_label(context[:root], context[:root_source])}")
+      @stdout.puts render("[dim]obsidian vault:[/] #{format_vault_label(context[:active_vault], context[:active_vault_source])}")
+      @stdout.puts render("[dim]saved Obsidian default:[/] #{format_saved_default(context[:default_vault])}")
+      @stdout.puts render("[dim]Obsidian default config path:[/] #{context[:default_vault_path]}")
       @stdout.puts
       @stdout.puts render('[dim]Commands:[/]')
-      @stdout.puts render('  [cyan]use <vault>[/] [dim]set active vault for this run[/]')
-      @stdout.puts render('  [cyan]save <vault>[/] [dim]save persistent default vault[/]')
-      @stdout.puts render('  [cyan]clear[/] [dim]clear persistent default vault[/]')
-      @stdout.puts render('  [cyan]none[/] [dim]clear active vault (use Obsidian CLI default)[/]')
+      @stdout.puts render('  [cyan]root <path>[/] [dim]use native markdown search in a folder[/]')
+      @stdout.puts render('  [cyan]vault <vault>[/] [dim]use Obsidian CLI with a vault name or id[/]')
+      @stdout.puts render('  [cyan]save <vault>[/] [dim]save persistent Obsidian default vault[/]')
+      @stdout.puts render('  [cyan]clear[/] [dim]clear persistent Obsidian default vault[/]')
+      @stdout.puts render('  [cyan]none[/] [dim]use Obsidian CLI default vault[/]')
       @stdout.puts render('  [cyan]back[/] [dim]return to search prompt[/]')
       @stdout.puts
-      @stdout.print render('[bold][cyan]vault-config[/]> ')
+      @stdout.print render('[bold][cyan]source-config[/]> ')
       input = @stdin.gets&.strip
-      return VaultConfigAction.new(session_vault: nil, set_default_vault: nil, clear_default: false, back: true) if input.nil?
+      return source_config_action(back: true) if input.nil?
 
       command = input.strip
-      return VaultConfigAction.new(session_vault: nil, set_default_vault: nil, clear_default: false, back: true) if command.empty?
-      return VaultConfigAction.new(session_vault: nil, set_default_vault: nil, clear_default: false, back: true) if command.casecmp('back').zero?
-      return VaultConfigAction.new(session_vault: '', set_default_vault: nil, clear_default: false, back: false) if command.casecmp('none').zero?
-      return VaultConfigAction.new(session_vault: nil, set_default_vault: nil, clear_default: true, back: false) if command.casecmp('clear').zero?
+      return source_config_action(back: true) if command.empty?
+      return source_config_action(back: true) if command.casecmp('back').zero?
+      return source_config_action(session_vault: '') if command.casecmp('none').zero?
+      return source_config_action(clear_default: true) if command.casecmp('clear').zero?
 
       if (match = command.match(/\Asave\s+(.+)\z/i))
-        return VaultConfigAction.new(session_vault: nil, set_default_vault: match[1].strip, clear_default: false, back: false)
+        return source_config_action(set_default_vault: match[1].strip)
       end
 
-      if (match = command.match(/\Ause\s+(.+)\z/i))
-        return VaultConfigAction.new(session_vault: match[1].strip, set_default_vault: nil, clear_default: false, back: false)
+      if (match = command.match(/\A(?:root|native)\s+(.+)\z/i))
+        return source_config_action(session_root: match[1].strip)
       end
 
-      VaultConfigAction.new(session_vault: command, set_default_vault: nil, clear_default: false, back: false)
+      if (match = command.match(/\A(?:vault|obsidian|use)\s+(.+)\z/i))
+        return source_config_action(session_vault: match[1].strip)
+      end
+
+      source_config_action(session_root: command)
     end
     # rubocop:enable Metrics/AbcSize
 
-    # rubocop:disable Metrics/BlockLength, Metrics/MethodLength
-    def select(paths, query:, vault:, vault_source:)
+    # rubocop:disable Metrics/BlockLength
+    def select(paths, query:, diagnostics:)
       state = {
         query: query,
-        vault: vault,
-        vault_source: vault_source,
+        diagnostics: diagnostics,
         filter: '',
         cursor: 0,
         offset: 0,
@@ -130,24 +129,24 @@ module Architext
           when :new_query
             return Selection.new(
               paths: [],
-              new_query: prompt_inline('New Obsidian search', state[:query]),
-              new_vault: nil,
+              new_query: prompt_inline('New markdown search', state[:query]),
+              source_config: false,
               reprompt_query: false
             )
           when :new_vault
             return Selection.new(
               paths: [],
               new_query: nil,
-              new_vault: prompt_inline('Vault name or id (blank clears)', state[:vault].to_s),
+              source_config: true,
               reprompt_query: false
             )
           when :enter
             selected = selected_paths(paths, state)
-            return Selection.new(paths: selected, new_query: nil, new_vault: nil, reprompt_query: false)
+            return Selection.new(paths: selected, new_query: nil, source_config: false, reprompt_query: false)
           when :quit
-            return Selection.new(paths: [], new_query: nil, new_vault: nil, reprompt_query: true)
+            return Selection.new(paths: [], new_query: nil, source_config: false, reprompt_query: true)
           when :ctrl_c
-            return Selection.new(paths: [], new_query: nil, new_vault: nil, reprompt_query: false)
+            return Selection.new(paths: [], new_query: nil, source_config: false, reprompt_query: false)
           end
 
           clamp_cursor!(state, visible.length)
@@ -155,14 +154,15 @@ module Architext
         end
       end
     end
-    # rubocop:enable Metrics/BlockLength, Metrics/MethodLength
+    # rubocop:enable Metrics/BlockLength
 
-    def show_no_results(query, vault:, vault_source:, default_vault_path:, obsidian_executable:)
-      vault_label = format_vault_label(vault, vault_source)
-      @stderr.puts render("[red]No Obsidian notes matched[/] [amber]#{query.inspect}[/]  #{vault_label}")
-      @stderr.puts render("[dim]default vault config:[/] #{default_vault_path}")
-      @stderr.puts render("[dim]obsidian cli:[/] #{obsidian_executable}")
-      @stderr.puts render('[amber]Tip:[/] at search prompt type [bold]v[/] for vault config, or pass [bold]--vault[/].')
+    def show_no_results(query, diagnostics:, default_vault_path:, obsidian_executable:)
+      @stderr.puts render("[red]No markdown notes matched[/] [amber]#{query.inspect}[/]  #{format_source_label(diagnostics)}")
+      if diagnostics[:source] == 'obsidian'
+        @stderr.puts render("[dim]default vault config:[/] #{default_vault_path}")
+        @stderr.puts render("[dim]obsidian cli:[/] #{obsidian_executable}")
+      end
+      @stderr.puts render('[amber]Tip:[/] at search prompt type [bold]v[/] for source config, or pass [bold]--root[/].')
     end
 
     def show_no_selection
@@ -192,6 +192,16 @@ module Architext
 
     private
 
+    def source_config_action(
+      session_root: nil,
+      session_vault: nil,
+      set_default_vault: nil,
+      clear_default: false,
+      back: false
+    )
+      SourceConfigAction.new(session_root:, session_vault:, set_default_vault:, clear_default:, back:)
+    end
+
     def draw_intro
       return unless @stdout.tty?
       return if @intro_rendered
@@ -212,7 +222,7 @@ module Architext
           styled = logo_style ? Terminal.paint(line, logo_style, enabled: @color) : line
           @stdout.puts center(styled, width)
         end
-        @stdout.puts center(render('[dim]Architect Obsidian context and stitch for agent work[/]'), width)
+        @stdout.puts center(render('[dim]Architect markdown context and stitch for agent work[/]'), width)
         version = "v#{Architext::VERSION}"
         styled_version = version_style ? Terminal.paint(version, version_style, enabled: @color) : version
         @stdout.puts center(styled_version, width)
@@ -280,7 +290,7 @@ module Architext
     def header_lines(width, state, total, visible_count)
       filter_label = state[:filter].empty? ? 'none' : state[:filter]
       [
-        Terminal.truncate(render("[bold][cyan]ARCHiTEXT[/] [dim]#{state[:vault] || 'obsidian default'}[/]"), width),
+        Terminal.truncate(render("[bold][cyan]ARCHiTEXT[/] [dim]#{format_source_label(state[:diagnostics])}[/]"), width),
         Terminal.truncate(render("[dim]query:[/] [amber]#{state[:query]}[/]  [dim]filter:[/] [cyan]#{filter_label}[/]"), width),
         Terminal.truncate(render("[dim]results:[/] #{visible_count}/#{total}  [dim]selected:[/] #{state[:selected].length}"), width),
         Terminal.paint('-' * width, :faint, enabled: @color)
@@ -482,18 +492,34 @@ module Architext
       Terminal.render(markup, enabled: @color)
     end
 
-    def draw_startup_vault_status(vault, vault_source, default_vault, default_vault_path, connection_report)
-      @stdout.puts render("[dim]active vault:[/] #{format_vault_label(vault, vault_source)}")
-      @stdout.puts render("[dim]saved default:[/] #{format_saved_default(default_vault)}")
-      @stdout.puts render("[dim]default config path:[/] #{default_vault_path}")
-      @stdout.puts render("[dim]obsidian cli:[/] #{connection_report[:executable]}")
-      @stdout.puts render("[dim]obsidian version:[/] #{connection_report[:version] || 'unknown'}")
+    def draw_startup_source_status(context)
+      connection_report = context[:connection_report]
+      @stdout.puts render("[dim]active source:[/] #{format_source_label(connection_report)}")
+      @stdout.puts render("[dim]native root:[/] #{format_root_label(context[:root], context[:root_source])}")
+      if connection_report[:source] == 'obsidian'
+        @stdout.puts render("[dim]obsidian vault:[/] #{format_vault_label(context[:vault], context[:vault_source])}")
+        @stdout.puts render("[dim]saved Obsidian default:[/] #{format_saved_default(context[:default_vault])}")
+        @stdout.puts render("[dim]default vault config path:[/] #{context[:default_vault_path]}")
+        @stdout.puts render("[dim]obsidian cli:[/] #{connection_report[:executable]}")
+        @stdout.puts render("[dim]obsidian version:[/] #{connection_report[:version] || 'unknown'}")
+      else
+        @stdout.puts render("[dim]markdown files:[/] #{connection_report[:markdown_count] || 'unknown'}")
+      end
       status_style = connection_report[:status] == 'ok' ? '[green]ok[/]' : '[red]error[/]'
       @stdout.puts render("[dim]connection check:[/] #{status_style}")
       @stdout.puts render("[dim]resolved vault:[/] #{connection_report[:resolved_vault_summary]}") if connection_report[:resolved_vault_summary]
       @stdout.puts render("[amber]diagnostic:[/] #{connection_report[:warning]}") if connection_report[:warning]
-      @stdout.puts render('[dim]vault target semantics: CWD vault if inside one, otherwise active Obsidian vault unless overridden.[/]')
       @stdout.puts
+    end
+
+    def format_source_label(diagnostics)
+      return format_root_label(diagnostics[:root], 'root') if diagnostics[:source] == 'native'
+
+      format_vault_label(diagnostics[:vault], diagnostics[:vault_source] || 'obsidian')
+    end
+
+    def format_root_label(root, source)
+      "[cyan]#{root}[/] [dim](#{source})[/]"
     end
 
     def format_vault_label(vault, source)

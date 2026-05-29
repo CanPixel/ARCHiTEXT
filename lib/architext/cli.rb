@@ -2,13 +2,13 @@
 
 require 'io/console'
 require 'optparse'
-require 'shellwords'
 
 require_relative 'bundle'
 require_relative 'clipboard'
 require_relative 'obsidian'
 require_relative 'picker'
 require_relative 'settings'
+require_relative 'sources'
 require_relative 'tui'
 require_relative 'version'
 
@@ -16,10 +16,15 @@ module Architext
   # rubocop:disable Metrics/ClassLength
   class CLI
     DEFAULT_QUERY = 'tag:#project/active'
+    SOURCE_NATIVE = 'native'
+    SOURCE_OBSIDIAN = 'obsidian'
     VAULT_SOURCE_EXPLICIT = '--vault'
     VAULT_SOURCE_SAVED_DEFAULT = 'saved default'
     VAULT_SOURCE_SESSION = 'session'
     VAULT_SOURCE_OBSIDIAN_DEFAULT = 'obsidian default'
+    ROOT_SOURCE_EXPLICIT = '--root'
+    ROOT_SOURCE_CWD = 'current folder'
+    ROOT_SOURCE_SESSION = 'session'
     SearchAttempt = Data.define(:paths, :next_query)
 
     def initialize(argv, io: {}, app_name: 'architext', dependencies: {})
@@ -32,6 +37,8 @@ module Architext
       @app_name = app_name
       @options = {
         query: nil,
+        source: SOURCE_NATIVE,
+        root: Dir.pwd,
         vault: nil,
         set_default_vault: nil,
         clear_default_vault: false,
@@ -41,6 +48,7 @@ module Architext
         all: false
       }
       @vault_source = VAULT_SOURCE_OBSIDIAN_DEFAULT
+      @root_source = ROOT_SOURCE_CWD
     end
 
     def run
@@ -48,18 +56,20 @@ module Architext
       return 0 if handled_default_vault_options?
 
       apply_default_vault
+      normalize_source_options
       return run_diagnostics if @options[:diagnose]
 
       selected_paths = gather_selection
       return 1 unless selected_paths
       return no_selection if selected_paths.empty?
 
+      source = build_source
       if @options[:dry_run]
-        print_dry_run(selected_paths, Obsidian.new(vault: @options[:vault]))
+        print_dry_run(selected_paths, source)
         return 0
       end
 
-      files = read_selected_files(Obsidian.new(vault: @options[:vault]), selected_paths)
+      files = read_selected_files(source, selected_paths)
       bundle = Bundle.new(files).to_markdown
       write_output(bundle)
       0
@@ -71,7 +81,7 @@ module Architext
       ui.show_error "#{@app_name}: #{e.message}"
       @stderr.puts 'Install/enable Obsidian CLI, or set ARCHITEXT_OBSIDIAN to its path.'
       127
-    rescue Obsidian::CommandFailed => e
+    rescue Obsidian::CommandFailed, SourceError => e
       ui.show_error "#{@app_name}: #{e.message}"
       1
     rescue Interrupt
@@ -86,12 +96,25 @@ module Architext
       parser = OptionParser.new do |opts|
         opts.banner = "Usage: bin/#{@app_name} [options]"
 
-        opts.on('-q', '--query QUERY', "Obsidian search query. Default: #{DEFAULT_QUERY}") do |value|
+        opts.on('-q', '--query QUERY', "Markdown search query. Default: #{DEFAULT_QUERY}") do |value|
           @options[:query] = value
+        end
+
+        opts.on('--source SOURCE', 'Search source: native or obsidian. Default: native') do |value|
+          source = value.to_s.strip.downcase
+          raise OptionParser::InvalidArgument, '--source must be native or obsidian' unless valid_source?(source)
+
+          @options[:source] = source
+        end
+
+        opts.on('--root PATH', 'Native markdown root. Default: current directory') do |value|
+          @options[:root] = value
+          @root_source = ROOT_SOURCE_EXPLICIT
         end
 
         opts.on('-v', '--vault VAULT', 'Obsidian vault name or id') do |value|
           @options[:vault] = value
+          @options[:source] = SOURCE_OBSIDIAN
         end
 
         opts.on('--set-default-vault VAULT', 'Set persistent default vault for future runs') do |value|
@@ -102,7 +125,7 @@ module Architext
           @options[:clear_default_vault] = true
         end
 
-        opts.on('--diagnose', 'Print Obsidian CLI and vault diagnostics, then exit') do
+        opts.on('--diagnose', 'Print source diagnostics, then exit') do
           @options[:diagnose] = true
         end
 
@@ -133,16 +156,17 @@ module Architext
     end
     # rubocop:enable Metrics/BlockLength
 
+    def valid_source?(source)
+      [SOURCE_NATIVE, SOURCE_OBSIDIAN].include?(source)
+    end
+
     def gather_selection
       query = @options[:query] || prompt_for_query
       return nil if query.nil?
 
-      vault = @options[:vault]
-      vault_source = @vault_source
-
       loop do
-        client = Obsidian.new(vault:)
-        attempt = search_with_recovery(client, query)
+        source = build_source
+        attempt = search_with_recovery(source, query)
         if attempt.next_query
           query = attempt.next_query
           return nil if query.nil?
@@ -152,19 +176,15 @@ module Architext
 
         paths = attempt.paths
         if paths.empty?
-          query = handle_no_results(query, vault, vault_source)
+          query = handle_no_results(query, source.diagnostics)
           return nil if query.nil?
 
           next
         end
 
-        selection = select_paths(paths, query:, vault:, vault_source:)
-        if selection.new_vault
-          vault = selection.new_vault.strip
-          vault = nil if vault.empty?
-          @options[:vault] = vault
-          vault_source = vault.nil? ? VAULT_SOURCE_OBSIDIAN_DEFAULT : VAULT_SOURCE_SESSION
-          @vault_source = vault_source
+        selection = select_paths(paths, query:, diagnostics: source.diagnostics)
+        if selection.source_config
+          handle_prompt_source_config
           next
         end
 
@@ -216,6 +236,8 @@ module Architext
     end
 
     def apply_default_vault
+      return unless @options[:source] == SOURCE_OBSIDIAN
+
       if @options[:vault]
         @vault_source = VAULT_SOURCE_EXPLICIT
         return
@@ -226,6 +248,14 @@ module Architext
       @vault_source = default_vault ? VAULT_SOURCE_SAVED_DEFAULT : VAULT_SOURCE_OBSIDIAN_DEFAULT
     end
 
+    def normalize_source_options
+      @options[:root] = File.expand_path(@options[:root].to_s)
+      return unless @options[:source] == SOURCE_NATIVE
+
+      @options[:vault] = nil
+      @vault_source = VAULT_SOURCE_OBSIDIAN_DEFAULT
+    end
+
     def prompt_for_query
       return DEFAULT_QUERY unless interactive?
 
@@ -234,6 +264,9 @@ module Architext
         input = ui.prompt_query(
           default: DEFAULT_QUERY,
           context: {
+            source: @options[:source],
+            root: @options[:root],
+            root_source: @root_source,
             vault: @options[:vault],
             vault_source: @vault_source,
             default_vault: @settings.default_vault,
@@ -244,7 +277,7 @@ module Architext
         return nil if input.quit
 
         if input.open_vault_config
-          handle_prompt_vault_config
+          handle_prompt_source_config
           next
         end
 
@@ -253,49 +286,54 @@ module Architext
     end
 
     def build_connection_report
-      report = {
-        executable: ENV.fetch('ARCHITEXT_OBSIDIAN', 'obsidian'),
-        status: 'unknown',
+      diagnostics = build_source.diagnostics
+      warning = diagnostics.warning
+      warning ||= vault_mismatch_warning(diagnostics.resolved_vault_summary, @options[:vault]) if diagnostics.source == SOURCE_OBSIDIAN
+      diagnostics.to_h.merge(warning:)
+    rescue SourceError => e
+      SourceDiagnostics.new(
+        source: @options[:source],
+        root: @options[:root],
+        vault: @options[:vault],
+        vault_source: @vault_source,
+        status: 'error',
+        warning: e.message,
+        markdown_count: nil,
+        executable: nil,
         version: nil,
-        resolved_vault_summary: nil,
-        warning: nil
-      }
-      client = Obsidian.new(vault: @options[:vault], executable: report[:executable])
-      report[:version] = client.version
-      report[:resolved_vault_summary] = summarize_vault_info(client.vault_info)
-      report[:status] = 'ok'
-      report[:warning] = vault_mismatch_warning(report[:resolved_vault_summary], @options[:vault])
-      report
-    rescue Obsidian::CommandFailed => e
-      report[:status] = 'error'
-      report[:warning] = first_line(e.message)
-      report
-    rescue Obsidian::CommandNotFound => e
-      report[:status] = 'error'
-      report[:warning] = e.message
-      report
+        resolved_vault_summary: nil
+      ).to_h
     end
 
     def run_diagnostics
       report = build_connection_report
       @stdout.puts "ARCHiTEXT diagnostics (v#{Architext::VERSION})"
+      @stdout.puts "active source: #{report[:source]}"
+      report[:source] == SOURCE_OBSIDIAN ? print_obsidian_diagnostics(report) : print_native_diagnostics(report)
+      @stdout.puts "connection check: #{report[:status]}"
+      @stdout.puts "diagnostic warning: #{report[:warning]}" if report[:warning]
+      report[:status] == 'ok' ? 0 : 1
+    end
+
+    def print_native_diagnostics(report)
+      @stdout.puts "root path: #{report[:root]}"
+      @stdout.puts "markdown files: #{report[:markdown_count] || 'unknown'}"
+    end
+
+    def print_obsidian_diagnostics(report)
       @stdout.puts "active vault ref: #{@options[:vault] || '(none selected)'}"
       @stdout.puts "vault source: #{@vault_source}"
       @stdout.puts "saved default vault: #{@settings.default_vault || '(none)'}"
       @stdout.puts "default vault config path: #{@settings.config_path}"
       @stdout.puts "obsidian cli executable: #{report[:executable]}"
       @stdout.puts "obsidian cli version: #{report[:version] || 'unknown'}"
-      @stdout.puts "connection check: #{report[:status]}"
       @stdout.puts "resolved vault: #{report[:resolved_vault_summary] || '(unknown)'}"
-      @stdout.puts "diagnostic warning: #{report[:warning]}" if report[:warning]
-      report[:status] == 'ok' ? 0 : 1
     end
 
-    def handle_no_results(query, vault, vault_source)
+    def handle_no_results(query, diagnostics)
       ui.show_no_results(
         query,
-        vault:,
-        vault_source:,
+        diagnostics: diagnostics.to_h,
         default_vault_path: @settings.config_path,
         obsidian_executable: ENV.fetch('ARCHITEXT_OBSIDIAN', 'obsidian')
       )
@@ -311,46 +349,66 @@ module Architext
       raise error
     end
 
-    def select_paths(paths, query:, vault:, vault_source:)
-      return TUI::Selection.new(paths:, new_query: nil, new_vault: nil, reprompt_query: false) if @options[:all]
+    def select_paths(paths, query:, diagnostics:)
+      return TUI::Selection.new(paths:, new_query: nil, source_config: false, reprompt_query: false) if @options[:all]
 
-      unless interactive?
-        raise Obsidian::CommandFailed,
-              'interactive selection requires a TTY; rerun with --all or provide input from a terminal'
-      end
+      raise SourceError, 'interactive selection requires a TTY; rerun with --all or provide input from a terminal' unless interactive?
 
-      ui.select(paths, query:, vault:, vault_source:)
+      ui.select(paths, query:, diagnostics: diagnostics.to_h)
     end
 
-    def handle_prompt_vault_config
+    def handle_prompt_source_config
       loop do
-        action = ui.prompt_vault_config(
+        context = {
+          source: @options[:source],
+          root: @options[:root],
+          root_source: @root_source,
           active_vault: @options[:vault],
           active_vault_source: @vault_source,
           default_vault: @settings.default_vault,
           default_vault_path: @settings.config_path
-        )
+        }
+        action = ui.prompt_source_config(context)
         return if action.back
 
-        if action.clear_default
-          @settings.clear_default_vault
-          ui.show_info('Default vault cleared.')
-          next
-        end
-
-        if action.set_default_vault
-          @settings.default_vault = action.set_default_vault
-          ui.show_info("Default vault set to: #{action.set_default_vault}")
-          next
-        end
-
-        next unless action.session_vault
-
-        vault = action.session_vault.strip
-        vault = nil if vault.empty?
-        @options[:vault] = vault
-        @vault_source = vault.nil? ? VAULT_SOURCE_OBSIDIAN_DEFAULT : VAULT_SOURCE_SESSION
+        apply_source_config_action(action)
       end
+    end
+
+    def build_source
+      return ObsidianSource.new(vault: @options[:vault], vault_source: @vault_source) if @options[:source] == SOURCE_OBSIDIAN
+
+      NativeMarkdownSource.new(root: @options[:root])
+    end
+
+    def apply_source_config_action(action)
+      if action.clear_default
+        @settings.clear_default_vault
+        ui.show_info('Default vault cleared.')
+      elsif action.set_default_vault
+        @settings.default_vault = action.set_default_vault
+        ui.show_info("Default vault set to: #{action.set_default_vault}")
+      elsif action.session_root
+        apply_native_root(action.session_root)
+      elsif action.session_vault
+        apply_obsidian_vault(action.session_vault)
+      end
+    end
+
+    def apply_native_root(root)
+      @options[:source] = SOURCE_NATIVE
+      @options[:root] = File.expand_path(root.strip)
+      @root_source = ROOT_SOURCE_SESSION
+      @options[:vault] = nil
+      @vault_source = VAULT_SOURCE_OBSIDIAN_DEFAULT
+    end
+
+    def apply_obsidian_vault(vault_value)
+      @options[:source] = SOURCE_OBSIDIAN
+      vault = vault_value.strip
+      vault = nil if vault.empty?
+      @options[:vault] = vault
+      @vault_source = vault.nil? ? VAULT_SOURCE_OBSIDIAN_DEFAULT : VAULT_SOURCE_SESSION
     end
 
     def print_dry_run(selected_paths, client)
@@ -374,7 +432,7 @@ module Architext
       @clipboard.copy(bundle)
       ui.show_copied(bundle.bytesize)
     rescue Clipboard::Error => e
-      raise Obsidian::CommandFailed, "#{e.message}\nTip: rerun with --stdout to print the bundle."
+      raise SourceError, "#{e.message}\nTip: rerun with --stdout to print the bundle."
     end
 
     def query_uses_operators?(query)
@@ -397,34 +455,11 @@ module Architext
       nil
     end
 
-    def summarize_vault_info(text)
-      lines = text.to_s.lines.map(&:strip).reject(&:empty?)
-      kv = lines.each_with_object({}) do |line, memo|
-        next unless line.match?(/\A[a-zA-Z0-9_]+\s+/)
-
-        key, value = line.split(/\s+/, 2)
-        memo[key.downcase] = value
-      end
-
-      name = kv['name']
-      path = kv['path']
-      return "#{name} | #{path}" if name && path
-      return name if name
-      return path if path
-
-      compact = lines.join(' | ')
-      compact[0, 180]
-    end
-
     def vault_mismatch_warning(vault_summary, requested_vault)
       return nil if requested_vault.to_s.strip.empty?
       return nil if vault_summary.to_s.downcase.include?(requested_vault.to_s.downcase)
 
       "Requested vault '#{requested_vault}' may not match resolved vault reported by Obsidian CLI."
-    end
-
-    def first_line(text)
-      text.to_s.lines.first.to_s.strip
     end
 
     def no_selection

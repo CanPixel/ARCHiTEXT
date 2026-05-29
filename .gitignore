@@ -1,2 +1,6 @@
 .codex/
 *.gem
+
+.DS_Store
+
+assets/.DS_Store

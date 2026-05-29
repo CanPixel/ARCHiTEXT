@@ -54,6 +54,6 @@
     <path d="M257 239h52" stroke="#B983FF" stroke-width="19" stroke-linecap="round"/>
   </g>
 
-  <text x="128" y="576" font-family="monospace" font-size="21" fill="#8392A5">Architect Obsidian context and stitch for agent work.</text>
+  <text x="128" y="576" font-family="monospace" font-size="21" fill="#8392A5">Architect markdown context and stitch for agent work.</text>
   <text x="944" y="576" font-family="monospace" font-size="21" fill="#6EEBFF">architext</text>
 </svg>

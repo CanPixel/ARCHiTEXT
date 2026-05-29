@@ -3,7 +3,19 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v1.0.0.html).
+
+## [1.0.0] - 2026-05-29
+
+### Added
+- Native markdown folder source is now the default, searching `.md` and `.markdown` files under the current directory or `--root`.
+- `--source native|obsidian` and `--root PATH` flags for explicit source selection.
+- Native search support for plain terms, quoted phrases, `tag:`, `path:`, and `file:` query tokens.
+
+### Changed
+- Obsidian CLI integration is now optional and explicit via `--source obsidian` or legacy `--vault`.
+- TUI and diagnostics now use source/root language and only show Obsidian CLI details in Obsidian mode.
+- README and gem metadata now position ARCHiTEXT as a markdown context stitching tool.
 
 ## [0.2.0] - 2026-05-16
 

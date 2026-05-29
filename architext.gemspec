@@ -5,8 +5,8 @@ require_relative "lib/architext/version"
 Gem::Specification.new do |spec|
   spec.name = "architext"
   spec.version = Architext::VERSION
-  spec.summary = "A visual Obsidian context stitching TUI for agent workflows."
-  spec.description = "A terminal interface to interactively select and bundle Obsidian notes for AI agent context."
+  spec.summary = "A visual markdown context stitching TUI for agent workflows."
+  spec.description = "A terminal interface to interactively search, select, and bundle markdown notes for AI agent context."
   spec.homepage = "https://github.com/CanPixel/ARCHiTEXT#readme"
   spec.authors = ["Can"]
   spec.files = %w[LICENSE README.md CHANGELOG.md] + Dir["bin/*", "lib/**/*.rb"]

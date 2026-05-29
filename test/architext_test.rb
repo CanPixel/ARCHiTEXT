@@ -13,6 +13,7 @@ require 'architext/cli'
 require 'architext/search_results'
 require 'architext/selection_parser'
 require 'architext/settings'
+require 'architext/sources'
 require 'architext/terminal'
 require 'architext/tui'
 
@@ -92,6 +93,74 @@ module Architext
 
         puts JSON.dump(["Ideas/Game.md"])
       RUBY
+    end
+  end
+
+  class NativeMarkdownSourceTest < Minitest::Test
+    def test_discovers_markdown_recursively_and_excludes_junk_directories
+      with_notes do |dir|
+        write_note(dir, 'Projects/Alpha.md', '# Alpha')
+        write_note(dir, 'Journal/Beta.markdown', '# Beta')
+        write_note(dir, 'misc.txt', '# Text')
+        write_note(dir, '.git/Hidden.md', '# Hidden')
+        write_note(dir, 'node_modules/Package.md', '# Package')
+        write_note(dir, '.bundle/Gem.md', '# Gem')
+        write_note(dir, 'vendor/Vendored.md', '# Vendored')
+
+        assert_equal ['Journal/Beta.markdown', 'Projects/Alpha.md'], NativeMarkdownSource.new(root: dir).search('')
+      end
+    end
+
+    def test_plain_text_matches_path_or_content
+      with_notes do |dir|
+        write_note(dir, 'Projects/Alpha.md', 'Planning the launch')
+        write_note(dir, 'Journal/Beta.md', 'Unrelated')
+
+        assert_equal ['Projects/Alpha.md'], NativeMarkdownSource.new(root: dir).search('launch')
+        assert_equal ['Projects/Alpha.md'], NativeMarkdownSource.new(root: dir).search('alpha')
+      end
+    end
+
+    def test_quoted_phrases_and_multiple_terms_are_and_matched
+      with_notes do |dir|
+        write_note(dir, 'Projects/Alpha.md', 'the exact project phrase with launch')
+        write_note(dir, 'Projects/Beta.md', 'the exact project phrase without it')
+
+        assert_equal ['Projects/Alpha.md'], NativeMarkdownSource.new(root: dir).search('"exact project phrase" launch')
+      end
+    end
+
+    def test_tag_path_and_file_operators
+      with_notes do |dir|
+        write_note(dir, 'Projects/Alpha.md', "#project/active\nLaunch note")
+        write_note(dir, 'Archive/Alpha.md', "#project/archive\nOld note")
+        source = NativeMarkdownSource.new(root: dir)
+
+        assert_equal ['Projects/Alpha.md'], source.search('tag:#project/active')
+        assert_equal ['Archive/Alpha.md', 'Projects/Alpha.md'], source.search('tag:project')
+        assert_equal ['Projects/Alpha.md'], source.search('path:Projects')
+        assert_equal ['Archive/Alpha.md', 'Projects/Alpha.md'], source.search('file:Alpha')
+      end
+    end
+
+    def test_read_rejects_paths_that_escape_root
+      with_notes do |dir|
+        source = NativeMarkdownSource.new(root: dir)
+
+        assert_raises(SourceError) { source.read('../outside.md') }
+      end
+    end
+
+    private
+
+    def with_notes(&)
+      Dir.mktmpdir(&)
+    end
+
+    def write_note(root, path, content)
+      full_path = File.join(root, path)
+      FileUtils.mkdir_p(File.dirname(full_path))
+      File.write(full_path, content)
     end
   end
 
@@ -182,15 +251,23 @@ module Architext
       result = tui.prompt_query(
         default: 'tag:#project/active',
         context: {
+          source: 'native',
+          root: '/notes',
+          root_source: 'current folder',
           vault: nil,
           vault_source: 'obsidian default',
           default_vault: nil,
           default_vault_path: '/tmp/default_vault',
           connection_report: {
-            executable: 'obsidian',
+            source: 'native',
+            root: '/notes',
+            vault: nil,
+            vault_source: nil,
             status: 'ok',
-            version: '1.0.0',
-            resolved_vault_summary: 'Main | /vault',
+            markdown_count: 2,
+            executable: nil,
+            version: nil,
+            resolved_vault_summary: nil,
             warning: nil
           }
         }
@@ -199,6 +276,8 @@ module Architext
       assert result.open_vault_config
       refute result.quit
       assert_nil result.query
+      assert_includes stdout.string, 'active source: /notes (root)'
+      assert_includes stdout.string, 'type \'v\' for source config'
     end
 
     def test_prompt_query_accepts_q_to_quit
@@ -210,15 +289,23 @@ module Architext
       result = tui.prompt_query(
         default: 'tag:#project/active',
         context: {
+          source: 'native',
+          root: '/notes',
+          root_source: 'current folder',
           vault: nil,
           vault_source: 'obsidian default',
           default_vault: nil,
           default_vault_path: '/tmp/default_vault',
           connection_report: {
-            executable: 'obsidian',
+            source: 'native',
+            root: '/notes',
+            vault: nil,
+            vault_source: nil,
             status: 'ok',
-            version: '1.0.0',
-            resolved_vault_summary: 'Main | /vault',
+            markdown_count: 2,
+            executable: nil,
+            version: nil,
+            resolved_vault_summary: nil,
             warning: nil
           }
         }
@@ -274,15 +361,55 @@ module Architext
     end
   end
 
+  # rubocop:disable Metrics/ClassLength
   class CLITest < Minitest::Test
-    def test_stdout_all_uses_obsidian_search_and_read
+    def test_stdout_all_uses_native_markdown_search_by_default
+      with_notes do |dir|
+        write_note(dir, 'Ideas/Game.md', "#ctx/current\nContents for game")
+        write_note(dir, 'Plans/Roadmap.md', 'Other note')
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = chdir(dir) do
+          CLI.new(
+            ['--query', 'tag:#ctx/current', '--all', '--stdout'],
+            io: { stdout:, stderr: }
+          ).run
+        end
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, '# Context Bundle'
+        assert_includes stdout.string, '## File: Ideas/Game.md'
+        assert_includes stdout.string, 'Contents for game'
+      end
+    end
+
+    def test_root_selects_a_native_markdown_folder
+      with_notes do |dir|
+        write_note(dir, 'Ideas/Game.md', 'selected root note')
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = CLI.new(
+          ['--root', dir, '--query', 'selected', '--all', '--stdout'],
+          io: { stdout:, stderr: }
+        ).run
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, '## File: Ideas/Game.md'
+      end
+    end
+
+    def test_source_obsidian_uses_obsidian_search_and_read
       with_fake_obsidian do |obsidian_path|
         stdout = StringIO.new
         stderr = StringIO.new
 
         code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
-            ['--query', 'tag:#ctx/current', '--all', '--stdout'],
+            ['--source', 'obsidian', '--query', 'tag:#ctx/current', '--all', '--stdout'],
             io: { stdout:, stderr: }
           ).run
         end
@@ -296,6 +423,24 @@ module Architext
       end
     end
 
+    def test_vault_flag_implies_obsidian_source
+      with_fake_obsidian do |obsidian_path|
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
+          CLI.new(
+            ['--vault', 'Main Vault', '--query', 'game', '--all', '--stdout'],
+            io: { stdout:, stderr: }
+          ).run
+        end
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, '## File: Ideas/Game.md'
+      end
+    end
+
     def test_read_failure_returns_error
       with_fake_obsidian(search_paths: ['Ideas/Game.md', 'bad.md']) do |obsidian_path|
         stdout = StringIO.new
@@ -303,7 +448,7 @@ module Architext
 
         code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
-            ['--query', 'tag:#ctx/current', '--all', '--stdout'],
+            ['--source', 'obsidian', '--query', 'tag:#ctx/current', '--all', '--stdout'],
             io: { stdout:, stderr: }
           ).run
         end
@@ -315,11 +460,11 @@ module Architext
     end
 
     def test_no_results_returns_error_without_extra_no_selection_message
-      with_fake_obsidian(search_paths: []) do |obsidian_path|
+      with_notes do |dir|
         stdout = StringIO.new
         stderr = StringIO.new
 
-        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
+        code = chdir(dir) do
           CLI.new(
             ['--query', 'tag:#missing', '--all', '--stdout'],
             io: { stdout:, stderr: },
@@ -329,18 +474,19 @@ module Architext
 
         assert_equal 1, code
         assert_empty stdout.string
-        assert_includes stderr.string, 'No Obsidian notes matched'
+        assert_includes stderr.string, 'No markdown notes matched'
         refute_includes stderr.string, 'No files selected'
       end
     end
 
     def test_non_stdout_mode_uses_clipboard_adapter
-      with_fake_obsidian do |obsidian_path|
+      with_notes do |dir|
+        write_note(dir, 'Ideas/Game.md', "#ctx/current\nClipboard note")
         stdout = StringIO.new
         stderr = StringIO.new
         clipboard = FakeClipboard.new
 
-        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
+        code = chdir(dir) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all'],
             io: { stdout:, stderr: },
@@ -356,12 +502,13 @@ module Architext
     end
 
     def test_clipboard_failure_surfaces_stdout_fallback_tip
-      with_fake_obsidian do |obsidian_path|
+      with_notes do |dir|
+        write_note(dir, 'Ideas/Game.md', "#ctx/current\nClipboard note")
         stdout = StringIO.new
         stderr = StringIO.new
         clipboard = FailingClipboard.new
 
-        code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
+        code = chdir(dir) do
           CLI.new(
             ['--query', 'tag:#ctx/current', '--all'],
             io: { stdout:, stderr: },
@@ -428,7 +575,7 @@ module Architext
       end
     end
 
-    def test_saved_default_vault_is_used_when_vault_flag_is_omitted
+    def test_saved_default_vault_is_used_in_obsidian_mode_when_vault_flag_is_omitted
       Dir.mktmpdir do |dir|
         stdout = StringIO.new
         stderr = StringIO.new
@@ -438,7 +585,7 @@ module Architext
         with_fake_obsidian(search_paths: []) do |obsidian_path|
           code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
             CLI.new(
-              ['--query', 'tag:#missing', '--all', '--stdout'],
+              ['--source', 'obsidian', '--query', 'tag:#missing', '--all', '--stdout'],
               io: { stdout:, stderr: },
               dependencies: { settings: },
               app_name: 'architext'
@@ -459,7 +606,7 @@ module Architext
 
         code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
           CLI.new(
-            ['--query', 'game', '--all', '--stdout'],
+            ['--source', 'obsidian', '--query', 'game', '--all', '--stdout'],
             io: { stdout:, stderr: }
           ).run
         end
@@ -470,18 +617,37 @@ module Architext
       end
     end
 
-    def test_diagnose_prints_connection_details
+    def test_diagnose_prints_native_connection_details
+      with_notes do |dir|
+        write_note(dir, 'Ideas/Game.md', 'Diagnostic note')
+        stdout = StringIO.new
+        stderr = StringIO.new
+
+        code = CLI.new(['--root', dir, '--diagnose'], io: { stdout:, stderr: }).run
+
+        assert_equal 0, code
+        assert_empty stderr.string
+        assert_includes stdout.string, 'ARCHiTEXT diagnostics'
+        assert_includes stdout.string, 'active source: native'
+        assert_includes stdout.string, "root path: #{File.realpath(dir)}"
+        assert_includes stdout.string, 'markdown files: 1'
+        refute_includes stdout.string, 'obsidian cli executable'
+      end
+    end
+
+    def test_diagnose_prints_obsidian_connection_details
       with_fake_obsidian do |obsidian_path|
         stdout = StringIO.new
         stderr = StringIO.new
 
         code = with_env('ARCHITEXT_OBSIDIAN' => obsidian_path) do
-          CLI.new(['--diagnose'], io: { stdout:, stderr: }).run
+          CLI.new(['--source', 'obsidian', '--diagnose'], io: { stdout:, stderr: }).run
         end
 
         assert_equal 0, code
         assert_empty stderr.string
         assert_includes stdout.string, 'ARCHiTEXT diagnostics'
+        assert_includes stdout.string, 'active source: obsidian'
         assert_includes stdout.string, 'connection check: ok'
         assert_includes stdout.string, 'resolved vault: Main Vault | /vaults/main'
       end
@@ -571,6 +737,24 @@ module Architext
       RUBY
     end
 
+    def with_notes(&)
+      Dir.mktmpdir(&)
+    end
+
+    def write_note(root, path, content)
+      full_path = File.join(root, path)
+      FileUtils.mkdir_p(File.dirname(full_path))
+      File.write(full_path, content)
+    end
+
+    def chdir(path)
+      previous = Dir.pwd
+      Dir.chdir(path)
+      yield
+    ensure
+      Dir.chdir(previous)
+    end
+
     def with_env(values)
       old_values = values.to_h { |key, _value| [key, ENV.fetch(key, nil)] }
       values.each { |key, value| ENV[key] = value }
@@ -579,6 +763,7 @@ module Architext
       old_values.each { |key, value| value.nil? ? ENV.delete(key) : ENV[key] = value }
     end
   end
+  # rubocop:enable Metrics/ClassLength
 
   class ClipboardTest < Minitest::Test
     FakeStatus = Struct.new(:successful, :exitstatus) do
