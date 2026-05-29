@@ -36,6 +36,8 @@
 
 ---
 
+<img src="assets/title-nobg.svg" alt="ARCHiTEXT Text Logo">
+
 <img src="assets/social-preview.svg" alt="ARCHiTEXT Social Preview" width="1080">
 
 
