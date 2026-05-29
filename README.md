@@ -16,9 +16,6 @@
   <a href="https://clickgems.clickhouse.com/dashboard/architext">
     <img src="https://img.shields.io/gem/dt/architext" alt="RubyGem Downloads">
   </a>
-  <a href="https://rubygems.org/gems/architext">
-    <img src="https://img.shields.io/github/stars/CanPixel" alt="GitHub Stars">
-  </a>
 </p>
 
 <p align="center">
