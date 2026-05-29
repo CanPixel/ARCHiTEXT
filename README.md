@@ -21,7 +21,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Ruby-CC342D?style=flat&logo=ruby&logoColor=white" alt="Ruby">
   <a href="https://rubygems.org/gems/architext">
-    <img src="https://img.shields.io/gem/v/architext" alt="License">
+    <img src="https://img.shields.io/gem/v/architext" alt="Gem version">
   </a>
   <a href="https://rubygems.org/gems/architext">
     <img src="https://img.shields.io/badge/version-v1.0.0-5BE8B8.svg" alt="Version 1.0.0">
